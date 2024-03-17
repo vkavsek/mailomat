@@ -10,4 +10,4 @@ rustflags = ["-C", "link-arg=-fuse-ld=mold"]
 
 # Environment variables set for all `cargo ...` commands
 [env]
-RUST_LOG = "zero2prod=debug"
+RUST_LOG = "mailer=debug"

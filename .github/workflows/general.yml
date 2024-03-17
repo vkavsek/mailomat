@@ -10,6 +10,7 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
+      - uses: rui314/setup-mold@v1
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
@@ -31,6 +32,7 @@ jobs:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
+      - uses: rui314/setup-mold@v1
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -42,10 +44,10 @@ jobs:
   coverage:
     name: Code coverage
     runs-on: ubuntu-latest
-    container:
-      image: xd009642/tarpaulin
-      options: --security-opt seccomp=unconfined
     steps:
+      - uses: rui314/setup-mold@v1
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
       - name: Checkout repository
         uses: actions/checkout@v3
       - name: Generate code coverage

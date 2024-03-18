@@ -607,6 +607,8 @@ dependencies = [
  "anyhow",
  "axum",
  "reqwest",
+ "serde",
+ "serde_json",
  "serial_test",
  "thiserror",
  "tokio",

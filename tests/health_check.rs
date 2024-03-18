@@ -8,6 +8,7 @@ use std::{
 
 use anyhow::Result;
 use reqwest::StatusCode;
+use serde_json::json;
 use serial_test::serial;
 use tokio::net::TcpListener;
 use tracing::info;
@@ -16,7 +17,7 @@ use tracing::info;
 /// which will then be bound to the application.
 const TEST_SOCK_ADDR: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
 
-/// Tries to spawn a separate thread to serve our app
+/// A helper function that tries to spawn a separate thread to serve our app
 /// returning the *socket address* on which it is listening.
 async fn spawn_app() -> Result<SocketAddr> {
     let addr = TEST_SOCK_ADDR;
@@ -50,16 +51,66 @@ async fn test_healthcheck_ok() -> Result<()> {
 
 #[serial]
 #[tokio::test]
-async fn test_healthcheck_ok_duplicate() -> Result<()> {
+async fn test_api_subscribe_ok() -> Result<()> {
     let addr = spawn_app().await?;
+
+    let json_request = json!({
+        "name": "John Doe",
+        "email": "john.doe@example.com"
+    });
 
     let client = reqwest::Client::new();
     let res = client
-        .get(format!("http://{addr}/health-check"))
+        .post(format!("http://{addr}/api/subscribe"))
+        .json(&json_request)
         .send()
         .await?;
 
-    assert!(res.status() == StatusCode::OK, "Healthcheck FAILED!");
+    assert_eq!(
+        res.status(),
+        StatusCode::OK,
+        "Wrong response StatusCode: {}",
+        res.status()
+    );
+
+    Ok(())
+}
+
+#[serial]
+#[tokio::test]
+async fn test_api_subscribe_bad_request() -> Result<()> {
+    let addr = spawn_app().await?;
+    let addr = format!("http://{addr}/api/subscribe");
+
+    let tests = [
+        (
+            json!({
+                "name": "John Doe",
+            }),
+            "Missing email",
+        ),
+        (
+            json!({
+                "name": null,
+                "email": "jd@example.com",
+            }),
+            "Missing name",
+        ),
+        (json!({}), "Empty json"),
+    ];
+
+    let client = reqwest::Client::new();
+
+    for (json_request, params) in tests {
+        let res = client.post(&addr).json(&json_request).send().await?;
+        assert_eq!(
+            res.status(),
+            StatusCode::BAD_REQUEST,
+            "Wrong response: ({}), Expected: ({}); for request with: {params}",
+            res.status(),
+            StatusCode::BAD_REQUEST
+        );
+    }
 
     Ok(())
 }

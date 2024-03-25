@@ -40,4 +40,3 @@ features = ["runtime-tokio-rustls", "macros", "postgres", "chrono", "migrate"]
 [dev-dependencies]
 anyhow = "1"
 reqwest = { version = "0.11", features = ["json"] }
-serial_test = "3"

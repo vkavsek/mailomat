@@ -10,7 +10,6 @@ use anyhow::Result;
 use mailer::model::ModelManager;
 use reqwest::StatusCode;
 use serde_json::json;
-use serial_test::serial;
 use tokio::net::TcpListener;
 use tracing::info;
 
@@ -38,7 +37,6 @@ async fn spawn_app() -> Result<(SocketAddr, ModelManager)> {
     Ok(res)
 }
 
-#[serial]
 #[tokio::test]
 async fn test_healthcheck_ok() -> Result<()> {
     let (addr, _mm) = spawn_app().await?;
@@ -54,7 +52,6 @@ async fn test_healthcheck_ok() -> Result<()> {
     Ok(())
 }
 
-#[serial]
 #[tokio::test]
 async fn test_api_subscribe_ok() -> Result<()> {
     let (addr, mm) = spawn_app().await?;
@@ -89,7 +86,6 @@ async fn test_api_subscribe_ok() -> Result<()> {
     Ok(())
 }
 
-#[serial]
 #[tokio::test]
 async fn test_api_subscribe_unprocessable_entity() -> Result<()> {
     let (addr, _mm) = spawn_app().await?;

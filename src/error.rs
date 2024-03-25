@@ -16,6 +16,9 @@ pub enum Error {
 
     #[error("Error while creating configuration: {0}")]
     Config(#[from] config::ConfigError),
+
+    #[error("Failed to create pool: {0}")]
+    ModelFailToCreatePool(String),
 }
 
 impl IntoResponse for Error {

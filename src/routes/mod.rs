@@ -1,14 +1,19 @@
 use axum::{
+    extract::State,
     http::StatusCode,
     routing::{get, post},
     Json, Router,
 };
 use serde::Deserialize;
+use sqlx::types::chrono::Utc;
 
-pub fn routes() -> Router {
+use crate::{model::ModelManager, Result};
+
+pub fn routes(mm: ModelManager) -> Router {
     Router::new()
-        .route("/health-check", get(health_check))
         .route("/api/subscribe", post(api_subscribe))
+        .with_state(mm)
+        .route("/health-check", get(health_check))
 }
 
 async fn health_check() -> StatusCode {
@@ -21,8 +26,22 @@ struct Subscriber {
     pub email: String,
 }
 
-async fn api_subscribe(Json(_subscriber): Json<Subscriber>) -> StatusCode {
-    // TODO: Do something with subscriber
+async fn api_subscribe(
+    State(mm): State<ModelManager>,
+    Json(subscriber): Json<Subscriber>,
+) -> Result<StatusCode> {
+    let db = mm.db();
+    let _ = sqlx::query!(
+        r#"
+        INSERT INTO subscriptions (email, name, subscribed_at)
+        VALUES ($1, $2, $3)
+    "#,
+        subscriber.email,
+        subscriber.name,
+        Utc::now()
+    )
+    .execute(db)
+    .await;
 
-    StatusCode::OK
+    Ok(StatusCode::OK)
 }

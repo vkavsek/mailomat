@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use mailer::{config::get_config, Result};
+use mailer::{config::get_config, model::ModelManager, Result};
 
 use tokio::net::TcpListener;
 use tracing::info;
@@ -16,12 +16,13 @@ async fn main() -> Result<()> {
         .init();
 
     let config = get_config()?;
+    let mm = ModelManager::init().await?;
 
     let addr = SocketAddr::from(([127, 0, 0, 1], config.app_port));
     let listener = TcpListener::bind(addr).await?;
     info!("Listening on: {addr}");
 
-    mailer::serve(listener).await?;
+    mailer::serve(listener, mm).await?;
 
     Ok(())
 }

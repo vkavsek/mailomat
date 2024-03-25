@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::Result;
-use mailer::config::get_config;
+use mailer::{config::get_config, model::ModelManager};
 use reqwest::StatusCode;
 use serde_json::json;
 use serial_test::serial;
@@ -23,6 +23,7 @@ const TEST_SOCK_ADDR: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127,
 /// returning the *socket address* on which it is listening.
 async fn spawn_app() -> Result<SocketAddr> {
     let addr = TEST_SOCK_ADDR;
+    let mm = ModelManager::init().await?;
 
     let listener = TcpListener::bind(&addr).await?;
     let port = listener.local_addr()?.port();
@@ -32,7 +33,7 @@ async fn spawn_app() -> Result<SocketAddr> {
     // we need to call .into_future() here.
     // We could technically await the future that serve() returns inside of on async block, but it's
     // easier to get error handling this way.
-    tokio::spawn(mailer::serve(listener).into_future());
+    tokio::spawn(mailer::serve(listener, mm).into_future());
 
     Ok(SocketAddr::from((TEST_SOCK_ADDR.ip(), port)))
 }

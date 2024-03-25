@@ -4,8 +4,8 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use chrono::Utc;
 use serde::Deserialize;
-use sqlx::types::chrono::Utc;
 
 use crate::{model::ModelManager, Result};
 
@@ -31,7 +31,7 @@ async fn api_subscribe(
     Json(subscriber): Json<Subscriber>,
 ) -> Result<StatusCode> {
     let db = mm.db();
-    let _ = sqlx::query!(
+    sqlx::query!(
         r#"
         INSERT INTO subscriptions (email, name, subscribed_at)
         VALUES ($1, $2, $3)
@@ -41,7 +41,7 @@ async fn api_subscribe(
         Utc::now()
     )
     .execute(db)
-    .await;
+    .await?;
 
     Ok(StatusCode::OK)
 }

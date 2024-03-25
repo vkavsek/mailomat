@@ -7,11 +7,10 @@ use std::{
 };
 
 use anyhow::Result;
-use mailer::{config::get_config, model::ModelManager};
+use mailer::model::ModelManager;
 use reqwest::StatusCode;
 use serde_json::json;
 use serial_test::serial;
-use sqlx::{Connection, PgConnection};
 use tokio::net::TcpListener;
 use tracing::info;
 
@@ -21,9 +20,9 @@ const TEST_SOCK_ADDR: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127,
 
 /// A helper function that tries to spawn a separate thread to serve our app
 /// returning the *socket address* on which it is listening.
-async fn spawn_app() -> Result<SocketAddr> {
+async fn spawn_app() -> Result<(SocketAddr, ModelManager)> {
     let addr = TEST_SOCK_ADDR;
-    let mm = ModelManager::init().await?;
+    let mm = ModelManager::test_init().await?;
 
     let listener = TcpListener::bind(&addr).await?;
     let port = listener.local_addr()?.port();
@@ -33,15 +32,16 @@ async fn spawn_app() -> Result<SocketAddr> {
     // we need to call .into_future() here.
     // We could technically await the future that serve() returns inside of on async block, but it's
     // easier to get error handling this way.
-    tokio::spawn(mailer::serve(listener, mm).into_future());
+    tokio::spawn(mailer::serve(listener, mm.clone()).into_future());
 
-    Ok(SocketAddr::from((TEST_SOCK_ADDR.ip(), port)))
+    let res = (SocketAddr::from((TEST_SOCK_ADDR.ip(), port)), mm);
+    Ok(res)
 }
 
 #[serial]
 #[tokio::test]
 async fn test_healthcheck_ok() -> Result<()> {
-    let addr = spawn_app().await?;
+    let (addr, _mm) = spawn_app().await?;
 
     let client = reqwest::Client::new();
     let res = client
@@ -57,11 +57,8 @@ async fn test_healthcheck_ok() -> Result<()> {
 #[serial]
 #[tokio::test]
 async fn test_api_subscribe_ok() -> Result<()> {
-    let addr = spawn_app().await?;
-    let config = get_config()?;
-    let db_url = config.db_config.connection_string();
+    let (addr, mm) = spawn_app().await?;
 
-    let mut connection = PgConnection::connect(&db_url).await?;
     let client = reqwest::Client::new();
 
     let json_request = json!({
@@ -83,7 +80,7 @@ async fn test_api_subscribe_ok() -> Result<()> {
     );
 
     let saved = sqlx::query!("SELECT email, name FROM subscriptions")
-        .fetch_one(&mut connection)
+        .fetch_one(mm.db())
         .await?;
 
     assert_eq!(saved.email, "john.doe@example.com");
@@ -95,7 +92,7 @@ async fn test_api_subscribe_ok() -> Result<()> {
 #[serial]
 #[tokio::test]
 async fn test_api_subscribe_unprocessable_entity() -> Result<()> {
-    let addr = spawn_app().await?;
+    let (addr, _mm) = spawn_app().await?;
     let addr = format!("http://{addr}/api/subscribe");
 
     let tests = [

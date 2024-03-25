@@ -11,6 +11,10 @@ pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("SQLx: {0}")]
+    SqlxCore(#[from] sqlx::Error),
+    #[error("SQLx Migrate: {0}")]
+    SqlxMigrate(#[from] sqlx::migrate::MigrateError),
     #[error("Io Error: {0}")]
     Io(#[from] std::io::Error),
 

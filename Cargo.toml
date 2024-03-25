@@ -26,19 +26,16 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # Config 
 config = "0.14"
+# Time 
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+# Others
+uuid = { version = "1.8", features = ["v4"] }
 
 # SQL 
 [dependencies.sqlx]
 version = "0.7"
 default-features = false
-features = [
-	"runtime-tokio-rustls",
-	"macros",
-	"postgres",
-	"uuid",
-	"chrono",
-	"migrate",
-]
+features = ["runtime-tokio-rustls", "macros", "postgres", "chrono", "migrate"]
 
 [dev-dependencies]
 anyhow = "1"

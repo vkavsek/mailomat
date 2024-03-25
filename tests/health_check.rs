@@ -32,7 +32,7 @@ async fn spawn_app() -> Result<SocketAddr> {
     // we need to call .into_future() here.
     // We could technically await the future that serve() returns inside of on async block, but it's
     // easier to get error handling this way.
-    tokio::spawn(mailer::serve(listener)?.into_future());
+    tokio::spawn(mailer::serve(listener).into_future());
 
     Ok(SocketAddr::from((TEST_SOCK_ADDR.ip(), port)))
 }

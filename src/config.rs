@@ -22,7 +22,10 @@ pub struct DatabaseConfig {
 pub fn get_config() -> Result<AppConfig> {
     // Init config reader
     let app_conf = config::Config::builder()
-        .add_source(config::File::new("config.toml", config::FileFormat::Toml))
+        .add_source(config::File::new(
+            "app_config.toml",
+            config::FileFormat::Toml,
+        ))
         .build()?
         .try_deserialize::<AppConfig>()?;
 

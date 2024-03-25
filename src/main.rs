@@ -21,7 +21,7 @@ async fn main() -> Result<()> {
     let listener = TcpListener::bind(addr).await?;
     info!("Listening on: {addr}");
 
-    mailer::serve(listener)?.await?;
+    mailer::serve(listener).await?;
 
     Ok(())
 }

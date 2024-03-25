@@ -60,7 +60,7 @@ async fn test_api_subscribe_ok() -> Result<()> {
     let config = get_config()?;
     let db_url = config.db_config.connection_string();
 
-    let mut _connection = PgConnection::connect(&db_url).await?;
+    let mut connection = PgConnection::connect(&db_url).await?;
     let client = reqwest::Client::new();
 
     let json_request = json!({
@@ -81,12 +81,12 @@ async fn test_api_subscribe_ok() -> Result<()> {
         res.status()
     );
 
-    // let saved = sqlx::query!("SELECT email, name FROM subscriptions")
-    //     .fetch_one(&mut connection)
-    //     .await?;
-    //
-    // assert_eq!(saved.email, "john.doe@example.com");
-    // assert_eq!(saved.name, "John Doe");
+    let saved = sqlx::query!("SELECT email, name FROM subscriptions")
+        .fetch_one(&mut connection)
+        .await?;
+
+    assert_eq!(saved.email, "john.doe@example.com");
+    assert_eq!(saved.name, "John Doe");
 
     Ok(())
 }

@@ -13,6 +13,9 @@ pub type Result<T> = core::result::Result<T, Error>;
 pub enum Error {
     #[error("Io Error: {0}")]
     Io(#[from] std::io::Error),
+
+    #[error("Error while creating configuration: {0}")]
+    Config(#[from] config::ConfigError),
 }
 
 impl IntoResponse for Error {

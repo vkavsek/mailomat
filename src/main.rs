@@ -1,9 +1,13 @@
+use std::net::SocketAddr;
+
+use mailer::{config::get_config, Result};
+
 use tokio::net::TcpListener;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<()> {
     // Initialize tracing
     tracing_subscriber::fmt()
         .with_target(false)
@@ -11,7 +15,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_env_filter(EnvFilter::from_default_env())
         .init();
 
-    let addr = "127.0.0.1:8080";
+    let config = get_config()?;
+
+    let addr = SocketAddr::from(([127, 0, 0, 1], config.app_port));
     let listener = TcpListener::bind(addr).await?;
     info!("Listening on: {addr}");
 

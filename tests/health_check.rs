@@ -7,9 +7,11 @@ use std::{
 };
 
 use anyhow::Result;
+use mailer::config::get_config;
 use reqwest::StatusCode;
 use serde_json::json;
 use serial_test::serial;
+use sqlx::{Connection, PgConnection};
 use tokio::net::TcpListener;
 use tracing::info;
 
@@ -26,8 +28,10 @@ async fn spawn_app() -> Result<SocketAddr> {
     let port = listener.local_addr()?.port();
     info!("Listening on {addr}");
 
-    // tokio::spawn takes a Future, since IntoFuture trait didn't exist when tokio went 1.0.
-    // That's why we need to call .into_future() here.
+    // tokio::spawn takes a Future, since IntoFuture trait didn't exist when tokio went 1.0
+    // we need to call .into_future() here.
+    // We could technically await the future that serve() returns inside of on async block, but it's
+    // easier to get error handling this way.
     tokio::spawn(mailer::serve(listener)?.into_future());
 
     Ok(SocketAddr::from((TEST_SOCK_ADDR.ip(), port)))
@@ -53,13 +57,17 @@ async fn test_healthcheck_ok() -> Result<()> {
 #[tokio::test]
 async fn test_api_subscribe_ok() -> Result<()> {
     let addr = spawn_app().await?;
+    let config = get_config()?;
+    let db_url = config.db_config.connection_string();
+
+    let mut _connection = PgConnection::connect(&db_url).await?;
+    let client = reqwest::Client::new();
 
     let json_request = json!({
         "name": "John Doe",
         "email": "john.doe@example.com"
     });
 
-    let client = reqwest::Client::new();
     let res = client
         .post(format!("http://{addr}/api/subscribe"))
         .json(&json_request)
@@ -73,12 +81,19 @@ async fn test_api_subscribe_ok() -> Result<()> {
         res.status()
     );
 
+    // let saved = sqlx::query!("SELECT email, name FROM subscriptions")
+    //     .fetch_one(&mut connection)
+    //     .await?;
+    //
+    // assert_eq!(saved.email, "john.doe@example.com");
+    // assert_eq!(saved.name, "John Doe");
+
     Ok(())
 }
 
 #[serial]
 #[tokio::test]
-async fn test_api_subscribe_bad_request() -> Result<()> {
+async fn test_api_subscribe_unprocessable_entity() -> Result<()> {
     let addr = spawn_app().await?;
     let addr = format!("http://{addr}/api/subscribe");
 
@@ -105,10 +120,10 @@ async fn test_api_subscribe_bad_request() -> Result<()> {
         let res = client.post(&addr).json(&json_request).send().await?;
         assert_eq!(
             res.status(),
-            StatusCode::BAD_REQUEST,
+            StatusCode::UNPROCESSABLE_ENTITY,
             "Wrong response: ({}), Expected: ({}); for request with: {params}",
             res.status(),
-            StatusCode::BAD_REQUEST
+            StatusCode::UNPROCESSABLE_ENTITY
         );
     }
 

@@ -1,16 +1,17 @@
 //! Tries to create a `Config` from a config file:
 
+use std::sync::OnceLock;
+
 use serde::Deserialize;
+use tracing::debug;
 
-use crate::Result;
-
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct AppConfig {
     pub db_config: DatabaseConfig,
     pub app_port: u16,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct DatabaseConfig {
     pub username: String,
     pub password: String,
@@ -19,17 +20,32 @@ pub struct DatabaseConfig {
     pub db_name: String,
 }
 
-pub fn get_config() -> Result<AppConfig> {
-    // Init config reader
-    let app_conf = config::Config::builder()
-        .add_source(config::File::new(
-            "app_config.toml",
-            config::FileFormat::Toml,
-        ))
-        .build()?
-        .try_deserialize::<AppConfig>()?;
-
-    Ok(app_conf)
+/// Allocates a static `OnceLock` containing `AppConfig`.
+/// This ensures configuration only gets initialized the first time we call this function.
+/// Every other caller gets a &'static ref to AppConfig.
+pub fn get_or_init_config() -> &'static AppConfig {
+    static CONFIG_INIT: OnceLock<AppConfig> = OnceLock::new();
+    // TODO: remove this debug print entirely
+    if CONFIG_INIT.get().is_some() {
+        debug!("{:<20} - Getting the configuration", "get_or_init_config");
+    }
+    CONFIG_INIT.get_or_init(|| {
+        debug!(
+            "{:<20} - Initializing the configuration",
+            "get_or_init_config"
+        );
+        config::Config::builder()
+            .add_source(config::File::new(
+                "app_config.toml",
+                config::FileFormat::Toml,
+            ))
+            .build()
+            .unwrap_or_else(|er| panic!("Fatal Error: While trying to build Config: {er:?}"))
+            .try_deserialize::<AppConfig>()
+            .unwrap_or_else(|er| {
+                panic!("Fatal Error: While deserializing Config to AppConfig: {er:?}")
+            })
+    })
 }
 
 impl DatabaseConfig {

@@ -19,8 +19,6 @@ axum = "0.7"
 # Tracing
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-# Error 
-thiserror = "1"
 # Serialization
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -30,6 +28,8 @@ config = "0.14"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # Others
 uuid = { version = "1.8", features = ["v4"] }
+strum_macros = "0.26"
+derive_more = "0.99"
 
 # SQL 
 [dependencies.sqlx]
@@ -39,4 +39,4 @@ features = ["runtime-tokio-rustls", "macros", "postgres", "chrono", "migrate"]
 
 [dev-dependencies]
 anyhow = "1"
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.12", features = ["json"] }

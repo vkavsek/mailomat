@@ -1,40 +1,31 @@
-use std::sync::Arc;
+use derive_more::From;
 
-use axum::{
-    http::StatusCode,
-    response::{IntoResponse, Response},
-};
-use thiserror::Error;
-use tracing::debug;
+use crate::web;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
-#[derive(Debug, Error)]
+#[derive(Debug, From)]
 pub enum Error {
-    #[error("SQLx: {0}")]
-    SqlxCore(#[from] sqlx::Error),
-    #[error("SQLx Migrate: {0}")]
-    SqlxMigrate(#[from] sqlx::migrate::MigrateError),
-    #[error("Io Error: {0}")]
-    Io(#[from] std::io::Error),
+    #[from]
+    Web(web::Error),
 
-    #[error("Error while creating configuration: {0}")]
-    Config(#[from] config::ConfigError),
+    #[from]
+    SqlxMigrate(sqlx::migrate::MigrateError),
+    #[from]
+    Io(std::io::Error),
+    #[from]
+    Config(config::ConfigError),
 
-    #[error("Failed to create pool: {0}")]
+    #[from]
+    ModelSqlxTestInit(sqlx::Error),
     ModelFailToCreatePool(String),
 }
 
-impl IntoResponse for Error {
-    fn into_response(self) -> Response {
-        debug!("{:<12} - into_response(Error: {self:?})", "INTO_RESP");
-
-        // Construct a response
-        let mut res = StatusCode::INTERNAL_SERVER_ERROR.into_response();
-
-        // Insert the Error into response so that it can be retrieved later.
-        res.extensions_mut().insert(Arc::new(self));
-
-        res
+// Error Boilerplate
+impl core::fmt::Display for Error {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
+        write!(fmt, "{self:?}")
     }
 }
+
+impl std::error::Error for Error {}

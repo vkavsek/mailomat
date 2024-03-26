@@ -1,10 +1,11 @@
 use std::time::Duration;
 
 use sqlx::{postgres::PgPoolOptions, Connection, PgConnection, PgPool};
+use tracing::debug;
 use uuid::Uuid;
 
 use crate::{
-    config::{get_config, DatabaseConfig},
+    config::{get_or_init_config, DatabaseConfig},
     Result,
 };
 
@@ -16,6 +17,7 @@ pub struct ModelManager {
 impl ModelManager {
     pub async fn init() -> Result<Self> {
         let db = init_db().await?;
+        debug!("{:<20} - Initializing the DB pool", "init_db");
 
         Ok(Self { db })
     }
@@ -30,7 +32,7 @@ impl ModelManager {
 }
 
 async fn init_db() -> Result<PgPool> {
-    let config = get_config()?;
+    let config = get_or_init_config();
 
     PgPoolOptions::new()
         .max_connections(5)
@@ -41,7 +43,8 @@ async fn init_db() -> Result<PgPool> {
 }
 
 async fn init_test_db() -> Result<PgPool> {
-    let mut config = get_config()?;
+    // Initialize special AppConfig for Testing
+    let mut config = get_or_init_config().to_owned();
 
     config_test_db(&mut config.db_config).await
 }

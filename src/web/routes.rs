@@ -6,8 +6,9 @@ use axum::{
 };
 use chrono::Utc;
 use serde::Deserialize;
+use tracing::debug;
 
-use crate::{model::ModelManager, Result};
+use crate::{model::ModelManager, web::Result};
 
 pub fn routes(mm: ModelManager) -> Router {
     Router::new()
@@ -17,6 +18,7 @@ pub fn routes(mm: ModelManager) -> Router {
 }
 
 async fn health_check() -> StatusCode {
+    debug!("{:<20} - GET /health-check", "HANDLER");
     StatusCode::OK
 }
 
@@ -30,6 +32,7 @@ async fn api_subscribe(
     State(mm): State<ModelManager>,
     Json(subscriber): Json<Subscriber>,
 ) -> Result<StatusCode> {
+    debug!("{:<20} - POST /api/subscribe", "HANDLER");
     let db = mm.db();
     sqlx::query!(
         r#"

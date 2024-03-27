@@ -4,16 +4,19 @@ use axum::{
 };
 use derive_more::From;
 use serde::Serialize;
+use serde_with::{serde_as, DisplayFromStr};
 use std::sync::Arc;
 use strum_macros::AsRefStr;
 use tracing::debug;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
-#[derive(Debug, From)]
+#[serde_as]
+#[derive(Debug, Serialize, From, AsRefStr)]
+#[serde(tag = "type", content = "data")]
 pub enum Error {
     #[from]
-    SqlxCore(sqlx::Error),
+    SqlxCore(#[serde_as(as = "DisplayFromStr")] sqlx::Error),
 }
 
 // Error Boilerplate

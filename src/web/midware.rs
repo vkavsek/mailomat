@@ -6,17 +6,15 @@ use axum::{
     Json,
 };
 use serde_json::{json, to_value};
-use tracing::debug;
 use uuid::Uuid;
 
-use crate::web::Error;
+use crate::web::{log, Error};
 
-// FIXME:
-pub async fn response_mapper(_req_method: Method, _uri: Uri, resp: Response) -> Response {
+pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Response {
     let uuid = Uuid::new_v4();
 
-    let err = resp.extensions().get::<Arc<Error>>().map(|er| er.as_ref());
-    let status_and_cl_err = err.map(Error::status_code_and_client_error);
+    let web_error = resp.extensions().get::<Arc<Error>>().map(|er| er.as_ref());
+    let status_and_cl_err = web_error.map(Error::status_code_and_client_error);
 
     let err_resp = status_and_cl_err.as_ref().map(|(status, cl_err)| {
         let client_error = to_value(cl_err).ok();
@@ -32,12 +30,21 @@ pub async fn response_mapper(_req_method: Method, _uri: Uri, resp: Response) -> 
                 }
             }
         });
-        debug!("CLIENT ERROR: {client_error_body}");
+        tracing::error!("CLIENT ERROR: {client_error_body}");
 
         (*status, Json(client_error_body)).into_response()
     });
 
-    // TODO: LogLine
+    #[allow(clippy::redundant_pattern_matching)]
+    if let Ok(_) = log::log_request(
+        uuid,
+        req_method,
+        uri,
+        web_error,
+        status_and_cl_err.as_ref().map(|(_, er)| er),
+    )
+    .await
+    {}
 
     err_resp.unwrap_or(resp)
 }

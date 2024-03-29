@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use axum::{
     extract::State,
     http::StatusCode,
@@ -20,8 +18,6 @@ pub fn routes(mm: ModelManager) -> Router {
 }
 
 async fn health_check() -> StatusCode {
-    let _ = tokio::time::sleep(Duration::from_secs(1)).await;
-
     StatusCode::OK
 }
 

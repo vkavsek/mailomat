@@ -13,7 +13,16 @@ use crate::web::{log, Error};
 pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Response {
     let uuid = Uuid::new_v4();
 
-    let web_error = resp.extensions().get::<Arc<Error>>().map(|er| er.as_ref());
+    let resp_status_code = resp.status();
+    if resp_status_code.as_u16() >= 400 {
+        tracing::error!("{resp_status_code}");
+    }
+
+    let web_error = resp.extensions().get::<Arc<Error>>().map(|er| {
+        // TODO: Do you want to record server error in server logs.
+        tracing::error!("SERVER ERROR: {er:?} ID: {uuid}");
+        er.as_ref()
+    });
     let status_and_cl_err = web_error.map(Error::status_code_and_client_error);
 
     let err_resp = status_and_cl_err.as_ref().map(|(status, cl_err)| {
@@ -30,7 +39,7 @@ pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Re
                 }
             }
         });
-        tracing::error!("CLIENT ERROR: {client_error_body}");
+        tracing::error!("CLIENT ERROR: {client_error_body} ID: {uuid}");
 
         (*status, Json(client_error_body)).into_response()
     });

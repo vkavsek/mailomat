@@ -1,6 +1,9 @@
-use std::time::Duration;
+use std::{str::FromStr, time::Duration};
 
-use sqlx::{postgres::PgPoolOptions, Connection, PgConnection, PgPool};
+use sqlx::{
+    postgres::{PgConnectOptions, PgPoolOptions},
+    ConnectOptions, Connection, PgConnection, PgPool,
+};
 use tracing::debug;
 use uuid::Uuid;
 
@@ -34,10 +37,14 @@ impl ModelManager {
 async fn init_db() -> Result<PgPool> {
     let config = get_or_init_config();
 
+    let con_opts = PgConnectOptions::from_str(&config.db_config.connection_string())?
+        // NOTE: You can set the level of TRACING here
+        .log_statements(tracing::log::LevelFilter::Off);
+
     PgPoolOptions::new()
         .max_connections(5)
         .acquire_timeout(Duration::from_millis(500))
-        .connect(&config.db_config.connection_string())
+        .connect_with(con_opts)
         .await
         .map_err(|ex| crate::Error::ModelFailToCreatePool(ex.to_string()))
 }

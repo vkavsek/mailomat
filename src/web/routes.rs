@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use axum::{
     extract::State,
     http::StatusCode,
@@ -6,7 +8,7 @@ use axum::{
 };
 use chrono::Utc;
 use serde::Deserialize;
-use tracing::{debug, info};
+use tracing::{info, Instrument};
 
 use crate::{model::ModelManager, web::Result};
 
@@ -18,7 +20,8 @@ pub fn routes(mm: ModelManager) -> Router {
 }
 
 async fn health_check() -> StatusCode {
-    debug!("{:<20} - GET /health-check", "HANDLER");
+    let _ = tokio::time::sleep(Duration::from_secs(1)).await;
+
     StatusCode::OK
 }
 
@@ -32,20 +35,22 @@ async fn api_subscribe(
     State(mm): State<ModelManager>,
     Json(subscriber): Json<Subscriber>,
 ) -> Result<StatusCode> {
-    debug!("{:<20} - POST /api/subscribe", "HANDLER");
     let db = mm.db();
-    info!("Saving new subscriber details in the database.");
-    sqlx::query!(
+
+    let q_span = tracing::info_span!("Adding subscriber to the database:");
+    sqlx::query(
         r#"
         INSERT INTO subscriptions (email, name, subscribed_at)
         VALUES ($1, $2, $3)
     "#,
-        subscriber.email,
-        subscriber.name,
-        Utc::now()
     )
+    .bind(subscriber.email)
+    .bind(subscriber.name)
+    .bind(Utc::now())
     .execute(db)
+    .instrument(q_span)
     .await?;
+
     info!("New subscriber succesfully added to the list.");
 
     Ok(StatusCode::OK)

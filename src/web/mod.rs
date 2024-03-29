@@ -5,6 +5,8 @@ mod routes;
 
 use axum::{middleware, serve::Serve, Router};
 use tokio::net::TcpListener;
+use tower_http::trace::{self, TraceLayer};
+use tracing::Level;
 
 use crate::model::ModelManager;
 
@@ -21,6 +23,12 @@ pub use error::{Error, Result};
 pub fn serve(listener: TcpListener, mm: ModelManager) -> Serve<Router, Router> {
     let app = Router::new()
         .merge(routes::routes(mm))
+        .layer(
+            TraceLayer::new_for_http()
+                .on_request(trace::DefaultOnRequest::new().level(Level::INFO))
+                .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
+                .on_response(trace::DefaultOnResponse::new().level(Level::INFO)),
+        )
         .layer(middleware::map_response(midware::response_mapper));
 
     axum::serve(listener, app)

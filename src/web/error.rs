@@ -8,7 +8,7 @@ use serde_with::{serde_as, DisplayFromStr};
 use sqlx::postgres::PgDatabaseError;
 use std::sync::Arc;
 use strum_macros::AsRefStr;
-use tracing::debug;
+// use tracing::debug;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -53,7 +53,7 @@ impl Error {
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
-        debug!("{:<20} - into_response(Error: {self:?})", "INTO_RESP");
+        // debug!("{:<20} - into_response(Error: {self:?})", "INTO_RESP");
 
         // Construct a response
         let mut res = StatusCode::INTERNAL_SERVER_ERROR.into_response();

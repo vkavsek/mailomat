@@ -6,7 +6,7 @@ use axum::{
 };
 use chrono::Utc;
 use serde::Deserialize;
-use tracing::debug;
+use tracing::{debug, info};
 
 use crate::{model::ModelManager, web::Result};
 
@@ -34,6 +34,7 @@ async fn api_subscribe(
 ) -> Result<StatusCode> {
     debug!("{:<20} - POST /api/subscribe", "HANDLER");
     let db = mm.db();
+    info!("Saving new subscriber details in the database.");
     sqlx::query!(
         r#"
         INSERT INTO subscriptions (email, name, subscribed_at)
@@ -45,6 +46,7 @@ async fn api_subscribe(
     )
     .execute(db)
     .await?;
+    info!("New subscriber succesfully added to the list.");
 
     Ok(StatusCode::OK)
 }

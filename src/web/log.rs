@@ -34,6 +34,7 @@ pub async fn log_request(
         web_error_type,
         web_error_data,
     };
+
     // TODO: send logline
     debug!("LOGLINE: {}", json!(logline));
 

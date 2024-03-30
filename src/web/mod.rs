@@ -4,6 +4,7 @@ mod midware;
 mod routes;
 
 use axum::{middleware, serve::Serve, Router};
+use serde::Deserialize;
 use tokio::net::TcpListener;
 use tower_http::trace::{self, TraceLayer};
 use tracing::Level;
@@ -11,6 +12,12 @@ use tracing::Level;
 use crate::model::ModelManager;
 
 pub use error::{Error, Result};
+
+#[derive(Deserialize, Debug)]
+pub struct Subscriber {
+    pub name: String,
+    pub email: String,
+}
 
 /// SERVE
 /// The core sync function returning a future that will serve this application.

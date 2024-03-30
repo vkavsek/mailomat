@@ -33,7 +33,7 @@ async fn spawn_app() -> Result<(SocketAddr, ModelManager)> {
     // easier to get error handling this way.
     tokio::spawn(mailer::serve(listener, mm.clone()).into_future());
 
-    let res = (SocketAddr::from((TEST_SOCK_ADDR.ip(), port)), mm);
+    let res = (SocketAddr::from((addr.ip(), port)), mm);
     Ok(res)
 }
 
@@ -76,12 +76,12 @@ async fn test_api_subscribe_ok() -> Result<()> {
         res.status()
     );
 
-    let saved = sqlx::query!("SELECT email, name FROM subscriptions")
+    let (email, name): (String, String) = sqlx::query_as("SELECT email, name FROM subscriptions")
         .fetch_one(mm.db())
         .await?;
 
-    assert_eq!(saved.email, "john.doe@example.com");
-    assert_eq!(saved.name, "John Doe");
+    assert_eq!(email, "john.doe@example.com");
+    assert_eq!(name, "John Doe");
 
     Ok(())
 }

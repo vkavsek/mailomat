@@ -5,10 +5,11 @@ use axum::{
     Json, Router,
 };
 use chrono::Utc;
-use serde::Deserialize;
 use tracing::{info, Instrument};
 
 use crate::{model::ModelManager, web::Result};
+
+use super::Subscriber;
 
 pub fn routes(mm: ModelManager) -> Router {
     Router::new()
@@ -19,12 +20,6 @@ pub fn routes(mm: ModelManager) -> Router {
 
 async fn health_check() -> StatusCode {
     StatusCode::OK
-}
-
-#[derive(Deserialize, Debug)]
-struct Subscriber {
-    pub name: String,
-    pub email: String,
 }
 
 async fn api_subscribe(

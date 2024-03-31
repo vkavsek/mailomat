@@ -39,7 +39,7 @@ async fn init_db() -> Result<PgPool> {
 
     let con_opts = PgConnectOptions::from_str(&config.db_config.connection_string())?
         // NOTE: You can set the level of TRACING here
-        .log_statements(tracing::log::LevelFilter::Off);
+        .log_statements(tracing::log::LevelFilter::Debug);
 
     PgPoolOptions::new()
         .max_connections(5)
@@ -63,13 +63,14 @@ async fn config_test_db(db_config: &mut DatabaseConfig) -> Result<PgPool> {
     let sql = format!(r#"CREATE DATABASE "{}";"#, db_config.db_name.clone());
     sqlx::query(&sql).execute(&mut connection).await?;
 
-    // Migrate DB
+    // Create pool
     let pg_pool = PgPoolOptions::new()
         .max_connections(1)
         .acquire_timeout(Duration::from_millis(500))
         .connect(&db_config.connection_string())
         .await
         .map_err(|ex| crate::Error::ModelFailToCreatePool(ex.to_string()))?;
+    // Migrate DB
     sqlx::migrate!("./migrations").run(&pg_pool).await?;
 
     Ok(pg_pool)

@@ -11,7 +11,7 @@ use tracing::debug;
 use crate::web::{log, Error, Result, REQUEST_ID_HEADER};
 
 pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Result<Response> {
-    // Get UUID from headers, stored there by SetRequestIdLayer
+    // Get UUID from headers stored there by SetRequestIdLayer middleware from tower_http
     let uuid = resp
         .headers()
         .get(REQUEST_ID_HEADER)
@@ -38,6 +38,7 @@ pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Re
                 }
             }
         });
+        // Should we even print the client error?
         tracing::error!("CLIENT ERROR: {client_error_body} ID: {uuid}");
 
         (*status, Json(client_error_body)).into_response()

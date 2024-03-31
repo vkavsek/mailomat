@@ -47,8 +47,8 @@ pub fn serve(listener: TcpListener, mm: ModelManager) -> Serve<Router, Router> {
     let x_request_id: HeaderName = HeaderName::from_static(REQUEST_ID_HEADER);
 
     let trace_layer = TraceLayer::new_for_http()
-        .make_span_with(|_req: &Request<Body>| {
-            let uuid = _req
+        .make_span_with(|req: &Request<Body>| {
+            let uuid = req
                 .headers()
                 .get(REQUEST_ID_HEADER)
                 .map(|uuid| uuid.to_str().unwrap_or("").to_string());
@@ -81,7 +81,7 @@ pub fn serve(listener: TcpListener, mm: ModelManager) -> Serve<Router, Router> {
             // If we want the response mapper to find the Propagated header
             // that middleware has to run first!
             .layer(middleware::map_response(midware::response_mapper))
-            // Propagate UUID to response, keep it last!
+            // Propagate UUID to response, keep it last so it processes the response first!
             .layer(PropagateRequestIdLayer::new(x_request_id)),
     );
 

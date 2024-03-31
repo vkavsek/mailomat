@@ -55,7 +55,7 @@ impl Error {
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
-        // debug!("{:<12} - into_response(Error: {self:?})", "INTO_RESP");
+        tracing::debug!("{:<12} - into_response(Error: {self:?})", "INTO_RESP");
 
         // Construct a response
         let mut res = StatusCode::INTERNAL_SERVER_ERROR.into_response();

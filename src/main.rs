@@ -10,8 +10,8 @@ use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 async fn main() -> Result<()> {
     // Initialize tracing
     tracing_subscriber::fmt()
-        // .without_time() // For early dev
-        .with_span_events(FmtSpan::CLOSE)
+        .without_time() // For early dev
+        .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
         .with_target(false)
         .with_env_filter(EnvFilter::from_default_env())
         .compact()

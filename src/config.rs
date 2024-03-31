@@ -2,6 +2,7 @@
 
 use std::sync::OnceLock;
 
+use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
 use tracing::debug;
 
@@ -14,7 +15,7 @@ pub struct AppConfig {
 #[derive(Deserialize, Clone)]
 pub struct DatabaseConfig {
     pub username: String,
-    pub password: String,
+    pub password: SecretString,
     pub port: u16,
     pub host: String,
     pub db_name: String,
@@ -52,13 +53,20 @@ impl DatabaseConfig {
     pub fn connection_string(&self) -> String {
         format!(
             "postgres://{}:{}@{}:{}/{}",
-            self.username, self.password, self.host, self.port, self.db_name
+            self.username,
+            self.password.expose_secret(),
+            self.host,
+            self.port,
+            self.db_name
         )
     }
     pub fn connection_string_without_db(&self) -> String {
         format!(
             "postgres://{}:{}@{}:{}",
-            self.username, self.password, self.host, self.port
+            self.username,
+            self.password.expose_secret(),
+            self.host,
+            self.port
         )
     }
 }

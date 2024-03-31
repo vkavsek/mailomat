@@ -19,7 +19,7 @@ use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 /// which will then be bound to the application.
 const TEST_SOCK_ADDR: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
 
-fn init_test_subscriber() {
+fn _init_test_subscriber() {
     static SUBSCRIBER: OnceLock<()> = OnceLock::new();
     SUBSCRIBER.get_or_init(|| {
         tracing_subscriber::fmt()
@@ -34,7 +34,7 @@ fn init_test_subscriber() {
 /// A helper function that tries to spawn a separate thread to serve our app
 /// returning the *socket address* on which it is listening.
 async fn spawn_app() -> Result<(SocketAddr, ModelManager)> {
-    init_test_subscriber();
+    // _init_test_subscriber();
 
     let addr = TEST_SOCK_ADDR;
     let mm = ModelManager::test_init().await?;

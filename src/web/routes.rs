@@ -5,7 +5,7 @@ use axum::{
     Json, Router,
 };
 use chrono::Utc;
-use tracing::{info, Instrument};
+use tracing::info;
 
 use crate::{model::ModelManager, web::Result};
 
@@ -18,17 +18,18 @@ pub fn routes(mm: ModelManager) -> Router {
         .route("/health-check", get(health_check))
 }
 
+#[tracing::instrument(name = "HEALTHCHECK")]
 async fn health_check() -> StatusCode {
     StatusCode::OK
 }
 
+#[tracing::instrument(name = "Saving new subscriber to the database", skip(mm, subscriber))]
 async fn api_subscribe(
     State(mm): State<ModelManager>,
     Json(subscriber): Json<Subscriber>,
 ) -> Result<StatusCode> {
     let db = mm.db();
 
-    let q_span = tracing::info_span!("Adding subscriber to the database:");
     sqlx::query(
         r#"
         INSERT INTO subscriptions (email, name, subscribed_at)
@@ -39,7 +40,6 @@ async fn api_subscribe(
     .bind(subscriber.name)
     .bind(Utc::now())
     .execute(db)
-    .instrument(q_span)
     .await?;
 
     info!("New subscriber succesfully added to the list.");

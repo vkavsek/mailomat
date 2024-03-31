@@ -30,6 +30,7 @@ config = "0.14"
 # Time 
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # Others
+secrecy = { version = "0.8", features = ["serde"] }
 uuid = { version = "1.8", features = ["v4"] }
 strum_macros = "0.26"
 derive_more = "0.99"

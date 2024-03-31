@@ -20,7 +20,7 @@ pub struct ModelManager {
 impl ModelManager {
     pub async fn init() -> Result<Self> {
         let db = init_db().await?;
-        debug!("{:<20} - Initializing the DB pool", "init_db");
+        debug!("{:<12} - Initializing the DB pool", "init_db");
 
         Ok(Self { db })
     }

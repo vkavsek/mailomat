@@ -16,6 +16,8 @@ pub type Result<T> = core::result::Result<T, Error>;
 #[derive(Debug, Serialize, From, AsRefStr)]
 #[serde(tag = "type", content = "data")]
 pub enum Error {
+    UuidNotInHeader,
+    HeaderToStrFail,
     #[from]
     SqlxCore(#[serde_as(as = "DisplayFromStr")] sqlx::Error),
 }
@@ -53,7 +55,7 @@ impl Error {
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
-        // debug!("{:<20} - into_response(Error: {self:?})", "INTO_RESP");
+        // debug!("{:<12} - into_response(Error: {self:?})", "INTO_RESP");
 
         // Construct a response
         let mut res = StatusCode::INTERNAL_SERVER_ERROR.into_response();

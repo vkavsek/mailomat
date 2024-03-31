@@ -28,11 +28,11 @@ pub fn get_or_init_config() -> &'static AppConfig {
     static CONFIG_INIT: OnceLock<AppConfig> = OnceLock::new();
     // TODO: remove this debug print entirely
     if CONFIG_INIT.get().is_some() {
-        debug!("{:<20} - Getting the configuration", "get_or_init_config");
+        debug!("{:<12} - Getting the configuration", "get_or_init_config");
     }
     CONFIG_INIT.get_or_init(|| {
         debug!(
-            "{:<20} - Initializing the configuration",
+            "{:<12} - Initializing the configuration",
             "get_or_init_config"
         );
         config::Config::builder()

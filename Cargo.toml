@@ -16,7 +16,7 @@ path = "src/main.rs"
 tokio = { version = "1", features = ["full"] }
 axum = "0.7"
 tower = "0.4"
-tower-http = { version = "0.5", features = ["trace"] }
+tower-http = { version = "0.5", features = ["trace", "request-id"] }
 # async-trait = "0.1"
 # Tracing
 tracing = { version = "0.1", features = ["log"] }

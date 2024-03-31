@@ -3,13 +3,12 @@ use serde::Serialize;
 use serde_json::{json, to_value, Value};
 use serde_with::skip_serializing_none;
 use tracing::debug;
-use uuid::Uuid;
 
 use super::error::ClientError;
 use crate::web::{Error, Result};
 
 pub async fn log_request(
-    uuid: Uuid,
+    uuid: &str,
     req_method: Method,
     uri: Uri,
     status_code: StatusCode,

@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -x
 set -eo pipefail
 
 if ! [ -x "$(command -v psql)" ]; then 
@@ -24,9 +23,14 @@ DB_NAME="${POSTGRES_DB:=newsletter}"
 DB_PORT="${POSTGRES_PORT:=5432}"
 DB_HOST="${POSTGRES_HOST:=localhost}"
 
+if [[ -z "${SKIP_DB_RESET}" ]]
+then
+	docker rm mailer_pg
+	echo >&2 " — Removed existing container named 'mailer_pg'!"
+fi
 if [[ -z "${SKIP_DOCKER}" ]]
 then
-	docker run -d --name postg \
+	docker run -d --name mailer_pg \
 		-e POSTGRES_USER=${DB_USER} \
 		-e POSTGRES_PASSWORD=${DB_PASSWORD} \
 		-e POSTGRES_DB=${DB_NAME} \
@@ -34,20 +38,21 @@ then
 		postgres:16 \
 		postgres -N 1000
 		# ^ Increased maximum number of connections for testing purpouses
+	echo >&2 " — Started a new Docker container called 'mailer_pg'!"
 fi
 	
 # Try to run a psql command to check if DB is online.
 export PGPASSWORD="${DB_PASSWORD}"
 until psql -h "${DB_HOST}" -U "${DB_USER}" -p "${DB_PORT}" -d "postgres"  -c '\q'; do 
-	echo >&2 "Postgres is still not available — Sleeping."
+	echo >&2 " — Postgres is still not available — Sleeping."
 	sleep 1
 done
 
-echo >&2 "Postgres is up and running on port ${DB_PORT}?"
+echo >&2 " — Postgres is up and running on port ${DB_PORT}!"
 
 DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
 export DATABASE_URL
 sqlx database create
 sqlx migrate run
 
-echo >&2 "Postgres has been migrated, ready to go!"
+echo >&2 " — Postgres has been migrated, ready to go!"

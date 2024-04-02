@@ -18,6 +18,9 @@ pub type Result<T> = core::result::Result<T, Error>;
 pub enum Error {
     UuidNotInHeader,
     HeaderToStrFail,
+
+    #[from]
+    Io(#[serde_as(as = "DisplayFromStr")] std::io::Error),
     #[from]
     SqlxCore(#[serde_as(as = "DisplayFromStr")] sqlx::Error),
 }

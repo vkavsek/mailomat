@@ -12,9 +12,9 @@ pub enum Error {
     Web(web::Error),
 
     #[from]
-    SqlxMigrate(sqlx::migrate::MigrateError),
-    #[from]
     Io(std::io::Error),
+    #[from]
+    SqlxMigrate(sqlx::migrate::MigrateError),
     #[from]
     Config(config::ConfigError),
 

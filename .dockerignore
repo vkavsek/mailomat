@@ -1,4 +1,5 @@
 .env
+copilot/
 target/
 tests/
 Dockerfile

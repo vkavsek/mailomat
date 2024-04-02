@@ -8,9 +8,7 @@ use std::time::Duration;
 use axum::{
     body::Body,
     http::{HeaderName, Request, Response},
-    middleware,
-    serve::Serve,
-    Router,
+    middleware, Router,
 };
 use serde::Deserialize;
 use tokio::net::TcpListener;
@@ -43,7 +41,9 @@ pub struct Subscriber {
 /// ```ignore
 /// mailer::serve(listener).await;
 /// ```
-pub fn serve(listener: TcpListener, mm: ModelManager) -> Serve<Router, Router> {
+// Allow unused vars otherwise the compiler complains because of the cfg macros
+#[allow(unused_variables)]
+pub async fn serve(listener: TcpListener, mm: ModelManager) -> Result<()> {
     let x_request_id: HeaderName = HeaderName::from_static(REQUEST_ID_HEADER);
 
     let trace_layer = TraceLayer::new_for_http()
@@ -84,5 +84,21 @@ pub fn serve(listener: TcpListener, mm: ModelManager) -> Serve<Router, Router> {
             .layer(PropagateRequestIdLayer::new(x_request_id)),
     );
 
-    axum::serve(listener, app)
+    #[cfg(not(debug_assertions))]
+    {
+        let app = ServiceBuilder::new()
+            .layer(axum_aws_lambda::LambdaLayer::default())
+            .service(app);
+
+        lambda_http::run(app)
+            .await
+            .expect("Couldn't start a LAMBDA runtime");
+    }
+
+    #[cfg(debug_assertions)]
+    {
+        axum::serve(listener, app).await?;
+    }
+
+    Ok(())
 }

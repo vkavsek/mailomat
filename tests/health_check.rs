@@ -2,18 +2,16 @@
 //!
 
 use std::{
-    future::IntoFuture,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::OnceLock,
 };
 
 use anyhow::Result;
-use mailer::model::ModelManager;
+use mailer::{init_dbg_tracing, model::ModelManager};
 use reqwest::StatusCode;
 use serde_json::json;
 use tokio::net::TcpListener;
 use tracing::info;
-use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 
 /// Trying to bind *port 0* will trigger an OS scan for an available port
 /// which will then be bound to the application.
@@ -22,13 +20,7 @@ const TEST_SOCK_ADDR: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127,
 fn _init_test_subscriber() {
     static SUBSCRIBER: OnceLock<()> = OnceLock::new();
     SUBSCRIBER.get_or_init(|| {
-        tracing_subscriber::fmt()
-            .without_time()
-            .with_span_events(FmtSpan::CLOSE)
-            .with_target(false)
-            .with_env_filter(EnvFilter::new("debug"))
-            .compact()
-            .init();
+        init_dbg_tracing();
     });
 }
 /// A helper function that tries to spawn a separate thread to serve our app
@@ -43,11 +35,7 @@ async fn spawn_app() -> Result<(SocketAddr, ModelManager)> {
     let port = listener.local_addr()?.port();
     info!("Listening on {addr}");
 
-    // tokio::spawn takes a Future, since IntoFuture trait didn't exist when tokio went 1.0
-    // we need to call .into_future() here.
-    // We could technically await the future that serve() returns inside of on async block, but it's
-    // easier to get error handling this way.
-    tokio::spawn(mailer::serve(listener, mm.clone()).into_future());
+    tokio::spawn(mailer::serve(listener, mm.clone()));
 
     let res = (SocketAddr::from((addr.ip(), port)), mm);
     Ok(res)

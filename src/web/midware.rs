@@ -18,7 +18,10 @@ pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Re
         .to_str()
         .map_err(|_| Error::HeaderToStrFail)?;
 
-    let web_error = resp.extensions().get::<Arc<Error>>().map(|er| er.as_ref());
+    let web_error = resp.extensions().get::<Arc<Error>>().map(|er| {
+        tracing::error!("WEB ERROR: {er:?}");
+        er.as_ref()
+    });
     let client_status_and_error = web_error.map(Error::status_code_and_client_error);
 
     let err_resp = client_status_and_error.as_ref().map(|(status, cl_err)| {
@@ -35,7 +38,6 @@ pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Re
                 }
             }
         });
-        // Should we even print the client error?
         tracing::error!("CLIENT ERROR: {client_error_body} ID: {uuid}");
 
         (*status, Json(client_error_body)).into_response()

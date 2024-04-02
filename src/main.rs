@@ -17,10 +17,10 @@ async fn main() -> Result<()> {
         .compact()
         .init();
 
-    let config = get_or_init_config();
-    let mm = ModelManager::init().await?;
+    let net_config = &get_or_init_config().net_config;
+    let mm = ModelManager::init()?;
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], config.app_port));
+    let addr = SocketAddr::from((net_config.host, net_config.app_port));
     let listener = TcpListener::bind(addr).await?;
     info!("Listening on: {addr}");
 

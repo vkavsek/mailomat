@@ -19,8 +19,8 @@ pub struct ModelManager {
 }
 
 impl ModelManager {
-    pub async fn init() -> Result<Self> {
-        let db = init_db().await?;
+    pub fn init() -> Result<Self> {
+        let db = init_db()?;
         info!("{:<12} - Initializing the DB pool", "init_db");
 
         Ok(Self { db })
@@ -35,7 +35,7 @@ impl ModelManager {
     }
 }
 
-async fn init_db() -> Result<PgPool> {
+fn init_db() -> Result<PgPool> {
     let config = get_or_init_config();
 
     let con_opts =
@@ -43,12 +43,13 @@ async fn init_db() -> Result<PgPool> {
             // NOTE: You can set the level of TRACING here
             .log_statements(tracing::log::LevelFilter::Debug);
 
-    PgPoolOptions::new()
+    let pool = PgPoolOptions::new()
         .max_connections(5)
         .acquire_timeout(Duration::from_millis(500))
-        .connect_with(con_opts)
-        .await
-        .map_err(|ex| crate::Error::ModelFailToCreatePool(ex.to_string()))
+        .connect_lazy_with(con_opts);
+    // .map_err(|ex| crate::Error::ModelFailToCreatePool(ex.to_string()))?;
+
+    Ok(pool)
 }
 
 async fn init_test_db() -> Result<PgPool> {

@@ -1,0 +1,9 @@
+[net_config]
+app_port = 8000
+
+[db_config]
+host = "127.0.0.1"
+port = 5432
+username = "postgres"
+password = "password"
+db_name = "newsletter"

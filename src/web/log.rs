@@ -2,7 +2,7 @@ use axum::http::{Method, StatusCode, Uri};
 use serde::Serialize;
 use serde_json::{json, to_value, Value};
 use serde_with::skip_serializing_none;
-use tracing::debug;
+use tracing::info;
 
 use super::error::ClientError;
 use crate::web::{Error, Result};
@@ -42,7 +42,7 @@ pub async fn log_request(
     };
 
     // TODO: send logline
-    debug!("LOGLINE: {}", json!(logline));
+    info!("REQUEST PROCESSED: {}", json!(logline));
 
     Ok(())
 }

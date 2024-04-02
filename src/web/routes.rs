@@ -30,6 +30,8 @@ async fn api_subscribe(
 ) -> Result<StatusCode> {
     let db = mm.db();
 
+    // TODO: Check email vailidity
+
     sqlx::query(
         r#"
         INSERT INTO subscriptions (email, name, subscribed_at)

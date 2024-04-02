@@ -1,10 +1,11 @@
 use std::{str::FromStr, time::Duration};
 
+use secrecy::ExposeSecret;
 use sqlx::{
     postgres::{PgConnectOptions, PgPoolOptions},
     ConnectOptions, Connection, PgConnection, PgPool,
 };
-use tracing::debug;
+use tracing::info;
 use uuid::Uuid;
 
 use crate::{
@@ -20,7 +21,7 @@ pub struct ModelManager {
 impl ModelManager {
     pub async fn init() -> Result<Self> {
         let db = init_db().await?;
-        debug!("{:<12} - Initializing the DB pool", "init_db");
+        info!("{:<12} - Initializing the DB pool", "init_db");
 
         Ok(Self { db })
     }
@@ -37,9 +38,10 @@ impl ModelManager {
 async fn init_db() -> Result<PgPool> {
     let config = get_or_init_config();
 
-    let con_opts = PgConnectOptions::from_str(&config.db_config.connection_string())?
-        // NOTE: You can set the level of TRACING here
-        .log_statements(tracing::log::LevelFilter::Debug);
+    let con_opts =
+        PgConnectOptions::from_str(config.db_config.connection_string().expose_secret())?
+            // NOTE: You can set the level of TRACING here
+            .log_statements(tracing::log::LevelFilter::Debug);
 
     PgPoolOptions::new()
         .max_connections(5)
@@ -58,7 +60,8 @@ async fn init_test_db() -> Result<PgPool> {
 
 async fn config_test_db(db_config: &mut DatabaseConfig) -> Result<PgPool> {
     db_config.db_name = Uuid::new_v4().to_string();
-    let mut connection = PgConnection::connect(&db_config.connection_string_without_db()).await?;
+    let mut connection =
+        PgConnection::connect(db_config.connection_string_without_db().expose_secret()).await?;
 
     let sql = format!(r#"CREATE DATABASE "{}";"#, db_config.db_name.clone());
     sqlx::query(&sql).execute(&mut connection).await?;
@@ -67,7 +70,7 @@ async fn config_test_db(db_config: &mut DatabaseConfig) -> Result<PgPool> {
     let pg_pool = PgPoolOptions::new()
         .max_connections(1)
         .acquire_timeout(Duration::from_millis(500))
-        .connect(&db_config.connection_string())
+        .connect(db_config.connection_string().expose_secret())
         .await
         .map_err(|ex| crate::Error::ModelFailToCreatePool(ex.to_string()))?;
     // Migrate DB

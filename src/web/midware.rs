@@ -6,7 +6,6 @@ use axum::{
     Json,
 };
 use serde_json::{json, to_value};
-use tracing::debug;
 
 use crate::web::{log, Error, Result, REQUEST_ID_HEADER};
 
@@ -18,8 +17,6 @@ pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Re
         .ok_or_else(|| Error::UuidNotInHeader)?
         .to_str()
         .map_err(|_| Error::HeaderToStrFail)?;
-
-    debug!("{:<12} - response_mapper - {}", "MIDDLEWARE", uuid);
 
     let web_error = resp.extensions().get::<Arc<Error>>().map(|er| er.as_ref());
     let client_status_and_error = web_error.map(Error::status_code_and_client_error);
@@ -44,8 +41,8 @@ pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Re
         (*status, Json(client_error_body)).into_response()
     });
 
-    #[allow(clippy::redundant_pattern_matching)]
-    if let Ok(_) = log::log_request(
+    // log_request is currently infallible so we just ignore the resulting Ok(())
+    let _ = log::log_request(
         uuid,
         req_method,
         uri,
@@ -53,8 +50,7 @@ pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Re
         web_error,
         client_status_and_error,
     )
-    .await
-    {}
+    .await;
 
     Ok(err_resp.unwrap_or(resp))
 }

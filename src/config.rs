@@ -2,7 +2,7 @@
 
 use std::sync::OnceLock;
 
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::{ExposeSecret, Secret, SecretString};
 use serde::Deserialize;
 use tracing::debug;
 
@@ -26,10 +26,6 @@ pub struct DatabaseConfig {
 /// Every other caller gets a &'static ref to AppConfig.
 pub fn get_or_init_config() -> &'static AppConfig {
     static CONFIG_INIT: OnceLock<AppConfig> = OnceLock::new();
-    // TODO: remove this debug print entirely
-    if CONFIG_INIT.get().is_some() {
-        debug!("{:<12} - Getting the configuration", "get_or_init_config");
-    }
     CONFIG_INIT.get_or_init(|| {
         debug!(
             "{:<12} - Initializing the configuration",
@@ -41,7 +37,7 @@ pub fn get_or_init_config() -> &'static AppConfig {
                 config::FileFormat::Toml,
             ))
             .build()
-            .unwrap_or_else(|er| panic!("Fatal Error: While trying to build Config: {er:?}"))
+            .unwrap_or_else(|er| panic!("Fatal Error: While trying to build AppConfig: {er:?}"))
             .try_deserialize::<AppConfig>()
             .unwrap_or_else(|er| {
                 panic!("Fatal Error: While deserializing Config to AppConfig: {er:?}")
@@ -50,23 +46,23 @@ pub fn get_or_init_config() -> &'static AppConfig {
 }
 
 impl DatabaseConfig {
-    pub fn connection_string(&self) -> String {
-        format!(
+    pub fn connection_string(&self) -> SecretString {
+        Secret::new(format!(
             "postgres://{}:{}@{}:{}/{}",
             self.username,
             self.password.expose_secret(),
             self.host,
             self.port,
             self.db_name
-        )
+        ))
     }
-    pub fn connection_string_without_db(&self) -> String {
-        format!(
+    pub fn connection_string_without_db(&self) -> SecretString {
+        Secret::new(format!(
             "postgres://{}:{}@{}:{}",
             self.username,
             self.password.expose_secret(),
             self.host,
             self.port
-        )
+        ))
     }
 }

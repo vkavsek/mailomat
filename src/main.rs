@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use mailer::{config::get_or_init_config, model::ModelManager, Result};
+use mailomat::{config::get_or_init_config, model::ModelManager, Result};
 
 use tokio::net::TcpListener;
 use tracing::info;
@@ -10,11 +10,11 @@ async fn main() -> Result<()> {
     // We have a different logging mechanism for production
     #[cfg(not(debug_assertions))]
     {
-        mailer::init_production_tracing()
+        mailomat::init_production_tracing()
     }
     #[cfg(debug_assertions)]
     {
-        mailer::init_dbg_tracing();
+        mailomat::init_dbg_tracing();
     }
 
     let net_config = &get_or_init_config().net_config;
@@ -24,7 +24,7 @@ async fn main() -> Result<()> {
     let listener = TcpListener::bind(addr).await?;
     info!("Listening on: {addr}");
 
-    mailer::serve(listener, mm).await?;
+    mailomat::serve(listener, mm).await?;
 
     Ok(())
 }

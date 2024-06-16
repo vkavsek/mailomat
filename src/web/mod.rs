@@ -39,7 +39,7 @@ pub struct Subscriber {
 /// It sets up a TraceLayer that provides console logging.
 /// It returns a `Result` containing a `Serve` future. Needs to be awaited like so:
 /// ```ignore
-/// mailer::serve(listener).await;
+/// mailomat::serve(listener).await;
 /// ```
 // Allow unused vars otherwise the compiler complains because of the cfg macros
 #[allow(unused_variables)]

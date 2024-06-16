@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::Result;
-use mailer::{init_dbg_tracing, model::ModelManager};
+use mailomat::{init_dbg_tracing, model::ModelManager};
 use reqwest::StatusCode;
 use serde_json::json;
 use tokio::net::TcpListener;
@@ -35,7 +35,7 @@ async fn spawn_app() -> Result<(SocketAddr, ModelManager)> {
     let port = listener.local_addr()?.port();
     info!("Listening on {addr}");
 
-    tokio::spawn(mailer::serve(listener, mm.clone()));
+    tokio::spawn(mailomat::serve(listener, mm.clone()));
 
     let res = (SocketAddr::from((addr.ip(), port)), mm);
     Ok(res)

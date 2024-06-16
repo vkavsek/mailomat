@@ -5,7 +5,7 @@ for ((i = 0; i < 50; i++)); do
 	email="ludoooo.$i@example.com"
 
 	curl -X POST \
-		http://localhost:8000/api/subscribe \
+		http://localhost:8080/api/subscribe \
 		-H 'Content-Type: application/json' \
 		-d '{
 		"name": "'"$name"'",

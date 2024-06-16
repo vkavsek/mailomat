@@ -22,7 +22,7 @@ RUN cargo chef cook --release --recipe-path recipe.json
 # If our dependency tree hasn't changed, everything should be cached up to now!
 COPY . .
 
-RUN cargo build --release --bin mailer
+RUN cargo build --release --bin mailomat
 
 
 ########################################
@@ -40,10 +40,10 @@ RUN apt-get update -y \
 
 
 # Copy the compiled binary from builder to runtime.
-COPY --from=builder /app/target/release/mailer mailer
+COPY --from=builder /app/target/release/mailomat mailomat
 # config/ is needed at runtime!
 COPY config config
 ENV APP_ENVIRONMENT production
 ENV RUST_LOG info
 
-ENTRYPOINT [ "./mailer" ]
+ENTRYPOINT [ "./mailomat" ]

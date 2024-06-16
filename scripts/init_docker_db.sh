@@ -25,12 +25,12 @@ DB_HOST="${POSTGRES_HOST:=localhost}"
 
 if [[ -z "${SKIP_DB_RESET}" ]]
 then
-	docker rm mailer_pg
-	echo >&2 " — Removed existing container named 'mailer_pg'!"
+	docker rm mailomat_pg
+	echo >&2 " — Removed existing container named 'mailomat_pg'!"
 fi
 if [[ -z "${SKIP_DOCKER}" ]]
 then
-	docker run -d --name mailer_pg \
+	docker run -d --name mailomat_pg \
 		-e POSTGRES_USER=${DB_USER} \
 		-e POSTGRES_PASSWORD=${DB_PASSWORD} \
 		-e POSTGRES_DB=${DB_NAME} \
@@ -38,7 +38,7 @@ then
 		postgres:16 \
 		postgres -N 1000
 		# ^ Increased maximum number of connections for testing purpouses
-	echo >&2 " — Started a new Docker container called 'mailer_pg'!"
+	echo >&2 " — Started a new Docker container called 'mailomat_pg'!"
 fi
 	
 # Try to run a psql command to check if DB is online.

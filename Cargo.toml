@@ -12,9 +12,6 @@ name = "mailer"
 path = "src/main.rs"
 
 [dependencies]
-# AWS Lambda 
-lambda_http = "0.11"
-axum-aws-lambda = "0.7"
 # Async
 tokio = { version = "1", features = ["full"] }
 axum = "0.7"

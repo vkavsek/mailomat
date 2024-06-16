@@ -33,7 +33,7 @@ pub struct Subscriber {
 }
 
 /// SERVE
-/// The core sync function returning a future that will serve this application.
+/// The core async function returning a future that will serve this application.
 ///
 /// Accepts a "TcpListener" and the state(ModelManager) and creates an App Router.
 /// It sets up a TraceLayer that provides console logging.
@@ -84,21 +84,7 @@ pub async fn serve(listener: TcpListener, mm: ModelManager) -> Result<()> {
             .layer(PropagateRequestIdLayer::new(x_request_id)),
     );
 
-    #[cfg(not(debug_assertions))]
-    {
-        let app = ServiceBuilder::new()
-            .layer(axum_aws_lambda::LambdaLayer::default())
-            .service(app);
-
-        lambda_http::run(app)
-            .await
-            .expect("Couldn't start a LAMBDA runtime");
-    }
-
-    #[cfg(debug_assertions)]
-    {
-        axum::serve(listener, app).await?;
-    }
+    axum::serve(listener, app).await?;
 
     Ok(())
 }

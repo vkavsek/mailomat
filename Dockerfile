@@ -1,4 +1,4 @@
-FROM lukemathwalker/cargo-chef:latest-rust-1.77 AS chef
+FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
 WORKDIR /app
 
 RUN apt update && apt install mold clang -y 

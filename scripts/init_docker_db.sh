@@ -25,12 +25,12 @@ DB_HOST="${POSTGRES_HOST:=localhost}"
 
 if [[ -z "${SKIP_DB_RESET}" ]]
 then
-	docker rm mailomat_pg
-	echo >&2 " — Removed existing container named 'mailomat_pg'!"
+	docker rm mailomat-pg
+	echo >&2 " — Removed existing container named 'mailomat-pg'!"
 fi
 if [[ -z "${SKIP_DOCKER}" ]]
 then
-	docker run -d --name mailomat_pg \
+	docker run -d --name mailomat-pg \
 		-e POSTGRES_USER=${DB_USER} \
 		-e POSTGRES_PASSWORD=${DB_PASSWORD} \
 		-e POSTGRES_DB=${DB_NAME} \
@@ -38,13 +38,13 @@ then
 		postgres:16 \
 		postgres -N 1000
 		# ^ Increased maximum number of connections for testing purpouses
-	echo >&2 " — Started a new Docker container called 'mailomat_pg'!"
+	echo >&2 " — Started a new Docker container called 'mailomat-pg'!"
 fi
 	
 # Try to run a psql command to check if DB is online.
 export PGPASSWORD="${DB_PASSWORD}"
+echo >&2 " — Waiting for Postgres — Sleeping."
 until psql -h "${DB_HOST}" -U "${DB_USER}" -p "${DB_PORT}" -d "postgres"  -c '\q'; do 
-	echo >&2 " — Postgres is still not available — Sleeping."
 	sleep 1
 done
 

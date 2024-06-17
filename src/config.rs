@@ -2,27 +2,31 @@
 
 use std::sync::OnceLock;
 
-use secrecy::{ExposeSecret, Secret, SecretString};
+use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
+use serde_aux::prelude::deserialize_number_from_string;
+use sqlx::postgres::PgConnectOptions;
 use strum_macros::AsRefStr;
 use tracing::debug;
 
 #[derive(Deserialize, Clone)]
 pub struct AppConfig {
     pub net_config: NetConfig,
-    pub db_config: DatabaseConfig,
+    pub db_config: DbConfig,
 }
 
 #[derive(Deserialize, Clone)]
 pub struct NetConfig {
     pub host: [u8; 4],
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub app_port: u16,
 }
 
 #[derive(Deserialize, Clone)]
-pub struct DatabaseConfig {
+pub struct DbConfig {
     pub username: String,
     pub password: SecretString,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
     pub db_name: String,
@@ -68,6 +72,15 @@ pub fn get_or_init_config() -> &'static AppConfig {
         config::Config::builder()
             .add_source(config::File::from(config_dir.join("base.toml")))
             .add_source(config::File::from(config_dir.join(environment_filename)))
+            // Injects in settings from enviroment.
+            // Only captures variables that start with prefix `APP_`,
+            // the values are separated with a `-`.
+            // APP_NETCONFIG-PORT, would set NetConfig.port
+            .add_source(
+                config::Environment::with_prefix("APP")
+                    .prefix_separator("_")
+                    .separator("-"),
+            )
             .build()
             .unwrap_or_else(|er| panic!("Fatal Error: While trying to build AppConfig: {er:?}"))
             .try_deserialize::<AppConfig>()
@@ -77,24 +90,15 @@ pub fn get_or_init_config() -> &'static AppConfig {
     })
 }
 
-impl DatabaseConfig {
-    pub fn connection_string(&self) -> SecretString {
-        Secret::new(format!(
-            "postgres://{}:{}@{}:{}/{}",
-            self.username,
-            self.password.expose_secret(),
-            self.host,
-            self.port,
-            self.db_name
-        ))
+impl DbConfig {
+    pub fn connection_options(&self) -> PgConnectOptions {
+        self.connection_options_without_db().database(&self.db_name)
     }
-    pub fn connection_string_without_db(&self) -> SecretString {
-        Secret::new(format!(
-            "postgres://{}:{}@{}:{}",
-            self.username,
-            self.password.expose_secret(),
-            self.host,
-            self.port
-        ))
+    pub fn connection_options_without_db(&self) -> PgConnectOptions {
+        PgConnectOptions::new()
+            .host(&self.host)
+            .username(&self.username)
+            .password(self.password.expose_secret())
+            .port(self.port)
     }
 }

@@ -1,15 +1,11 @@
-use std::{str::FromStr, time::Duration};
+use std::time::Duration;
 
-use secrecy::ExposeSecret;
-use sqlx::{
-    postgres::{PgConnectOptions, PgPoolOptions},
-    ConnectOptions, Connection, PgConnection, PgPool,
-};
+use sqlx::{postgres::PgPoolOptions, ConnectOptions, Connection, PgConnection, PgPool};
 use tracing::info;
 use uuid::Uuid;
 
 use crate::{
-    config::{get_or_init_config, DatabaseConfig},
+    config::{get_or_init_config, DbConfig},
     Result,
 };
 
@@ -38,16 +34,15 @@ impl ModelManager {
 fn init_db() -> Result<PgPool> {
     let config = get_or_init_config();
 
-    let con_opts =
-        PgConnectOptions::from_str(config.db_config.connection_string().expose_secret())?
-            // NOTE: You can set the level of TRACING here
-            .log_statements(tracing::log::LevelFilter::Debug);
+    let con_opts = config
+        .db_config
+        .connection_options()
+        .log_statements(tracing::log::LevelFilter::Debug);
 
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .acquire_timeout(Duration::from_millis(500))
         .connect_lazy_with(con_opts);
-    // .map_err(|ex| crate::Error::ModelFailToCreatePool(ex.to_string()))?;
 
     Ok(pool)
 }
@@ -59,10 +54,10 @@ async fn init_test_db() -> Result<PgPool> {
     config_test_db(&mut config.db_config).await
 }
 
-async fn config_test_db(db_config: &mut DatabaseConfig) -> Result<PgPool> {
+async fn config_test_db(db_config: &mut DbConfig) -> Result<PgPool> {
     db_config.db_name = Uuid::new_v4().to_string();
     let mut connection =
-        PgConnection::connect(db_config.connection_string_without_db().expose_secret()).await?;
+        PgConnection::connect_with(&db_config.connection_options_without_db()).await?;
 
     let sql = format!(r#"CREATE DATABASE "{}";"#, db_config.db_name.clone());
     sqlx::query(&sql).execute(&mut connection).await?;
@@ -71,7 +66,7 @@ async fn config_test_db(db_config: &mut DatabaseConfig) -> Result<PgPool> {
     let pg_pool = PgPoolOptions::new()
         .max_connections(1)
         .acquire_timeout(Duration::from_millis(500))
-        .connect(db_config.connection_string().expose_secret())
+        .connect_with(db_config.connection_options())
         .await
         .map_err(|ex| crate::Error::ModelFailToCreatePool(ex.to_string()))?;
     // Migrate DB

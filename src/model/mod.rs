@@ -37,6 +37,9 @@ fn init_db() -> Result<PgPool> {
     let con_opts = config
         .db_config
         .connection_options()
+        // NOTE: Disabled SSL for production, since fly.io's DATABASE_URL returns ?ssl=disable,
+        // since all our applications esentially run on an internal network (I think).
+        .ssl_mode(sqlx::postgres::PgSslMode::Disable)
         .log_statements(tracing::log::LevelFilter::Debug);
 
     let pool = PgPoolOptions::new()

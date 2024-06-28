@@ -45,14 +45,14 @@ impl DbConfig {
     }
 }
 
-impl TryFrom<String> for DbConfig {
+impl TryFrom<&str> for DbConfig {
     type Error = crate::Error;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         // postgres://{username}:{password}@{hostname}:{port}/{database}
-        let (_whole, username, password, host, port, db_name) = regex_captures!(
-            r#"^postgres:\/\/(^:)+:(^@)+@(^:\/)+:(\d+)\/(^\s\/)+$"#,
-            &value
+        let (_whole, username, password, host, port, db_name, _options) = regex_captures!(
+            r#"^postgres:\/\/([^:]+):([^@]+)@([^:\/]+):(\d+)\/([^\s\/?]+)(\?[^\s]*)?$"#,
+            value
         )
         .ok_or(crate::Error::StringToDbConfigFail)?;
 
@@ -136,7 +136,7 @@ pub fn get_or_init_config() -> &'static AppConfig {
             let production_db = std::env::var("DATABASE_URL").unwrap_or_else(|er| {
                 panic!("Fatal Error: While looking for DATABASE_URL env variable: {er:?}")
             });
-            let prod_db_config = DbConfig::try_from(production_db).unwrap_or_else(|er| {
+            let prod_db_config = DbConfig::try_from(production_db.as_str()).unwrap_or_else(|er| {
                 panic!("Fatal Error: While parsing DbConfig from String: {er:?}")
             });
             config.db_config = prod_db_config;
@@ -144,4 +144,59 @@ pub fn get_or_init_config() -> &'static AppConfig {
 
         config
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Result;
+
+    #[tokio::test]
+    async fn test_db_config_from_str_success() -> Result<()> {
+        {
+            let db_url = "postgres://my_uname:pwd@localhost:6666/my_db";
+            let db_config = DbConfig::try_from(db_url)?;
+
+            assert_eq!("my_uname", db_config.username);
+            assert_eq!("pwd", db_config.password.expose_secret());
+            assert_eq!("localhost", db_config.host);
+            assert_eq!(6666, db_config.port);
+            assert_eq!("my_db", db_config.db_name);
+        }
+
+        {
+            let db_url = "postgres://my_uname:pwd@localhost:6666/my_db?ssl=disable";
+            let db_config = DbConfig::try_from(db_url)?;
+
+            assert_eq!("my_uname", db_config.username);
+            assert_eq!("pwd", db_config.password.expose_secret());
+            assert_eq!("localhost", db_config.host);
+            assert_eq!(6666, db_config.port);
+            assert_eq!("my_db", db_config.db_name);
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_db_config_from_str_fail() -> Result<()> {
+        {
+            let db_url = "postgres://my_uname:pwd@localh";
+            let db_config = DbConfig::try_from(db_url);
+            assert!(db_config.is_err())
+        }
+
+        {
+            let db_url = "postgres://my_uname:pwd@localhost:asd/my_db";
+            let db_config = DbConfig::try_from(db_url);
+            assert!(db_config.is_err())
+        }
+
+        {
+            let db_url = "postgres://my_uname:pwd@localhost:asd/my_db/fail";
+            let db_config = DbConfig::try_from(db_url);
+            assert!(db_config.is_err())
+        }
+        Ok(())
+    }
 }

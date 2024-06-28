@@ -2,6 +2,7 @@
 
 use std::sync::OnceLock;
 
+use lazy_regex::regex_captures;
 use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
 use serde_aux::prelude::deserialize_number_from_string;
@@ -31,6 +32,46 @@ pub struct DbConfig {
     pub host: String,
     pub db_name: String,
 }
+impl DbConfig {
+    pub fn connection_options(&self) -> PgConnectOptions {
+        self.connection_options_without_db().database(&self.db_name)
+    }
+    pub fn connection_options_without_db(&self) -> PgConnectOptions {
+        PgConnectOptions::new()
+            .host(&self.host)
+            .username(&self.username)
+            .password(self.password.expose_secret())
+            .port(self.port)
+    }
+}
+
+impl TryFrom<String> for DbConfig {
+    type Error = crate::Error;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        // postgres://{username}:{password}@{hostname}:{port}/{database}
+        let (_whole, username, password, host, port, db_name) = regex_captures!(
+            r#"^postgres:\/\/(^:)+:(^@)+@(^:\/)+:(\d+)\/(^\s\/)+$"#,
+            &value
+        )
+        .ok_or(crate::Error::StringToDbConfigFail)?;
+
+        let (username, db_name, host) =
+            (username.to_string(), db_name.to_string(), host.to_string());
+        let password = SecretString::new(password.to_string());
+        let port = port
+            .parse()
+            .map_err(|_| crate::Error::StringToDbConfigFail)?;
+
+        Ok(DbConfig {
+            username,
+            password,
+            port,
+            host,
+            db_name,
+        })
+    }
+}
 
 #[derive(AsRefStr)]
 enum Environment {
@@ -45,7 +86,7 @@ impl TryFrom<String> for Environment {
         match value.to_ascii_lowercase().as_str() {
             "local" => Ok(Self::Local),
             "production" => Ok(Self::Production),
-            _ => Err(Self::Error::StrToEnvironmentFail),
+            _ => Err(Self::Error::StringToEnvironmentFail),
         }
     }
 }
@@ -69,36 +110,38 @@ pub fn get_or_init_config() -> &'static AppConfig {
             .expect("Failed to parse APP_ENVIRONMENT.");
         let environment_filename = format!("{}.toml", environment.as_ref().to_lowercase());
 
-        config::Config::builder()
+        let mut config = config::Config::builder()
             .add_source(config::File::from(config_dir.join("base.toml")))
             .add_source(config::File::from(config_dir.join(environment_filename)))
-            // Injects in settings from enviroment.
+            // TODO: Delete this ?
+            // Injects in settings from environment.
             // Only captures variables that start with prefix `APP_`,
             // the values are separated with a `-`.
-            // APP_NETCONFIG-PORT, would set NetConfig.port
-            .add_source(
-                config::Environment::with_prefix("APP")
-                    .prefix_separator("_")
-                    .separator("-"),
-            )
+            // APP_NETCONFIG__PORT, would set NetConfig.port
+            // .add_source(
+            //     config::Environment::with_prefix("APP")
+            //         .prefix_separator("_")
+            //         .separator("__"),
+            // )
             .build()
             .unwrap_or_else(|er| panic!("Fatal Error: While trying to build AppConfig: {er:?}"))
             .try_deserialize::<AppConfig>()
             .unwrap_or_else(|er| {
                 panic!("Fatal Error: While deserializing Config to AppConfig: {er:?}")
-            })
-    })
-}
+            });
 
-impl DbConfig {
-    pub fn connection_options(&self) -> PgConnectOptions {
-        self.connection_options_without_db().database(&self.db_name)
-    }
-    pub fn connection_options_without_db(&self) -> PgConnectOptions {
-        PgConnectOptions::new()
-            .host(&self.host)
-            .username(&self.username)
-            .password(self.password.expose_secret())
-            .port(self.port)
-    }
+        // Setup DbConfig for production
+        if matches!(environment, Environment::Production) {
+            // Panic early if there are any problems.
+            let production_db = std::env::var("DATABASE_URL").unwrap_or_else(|er| {
+                panic!("Fatal Error: While looking for DATABASE_URL env variable: {er:?}")
+            });
+            let prod_db_config = DbConfig::try_from(production_db).unwrap_or_else(|er| {
+                panic!("Fatal Error: While parsing DbConfig from String: {er:?}")
+            });
+            config.db_config = prod_db_config;
+        }
+
+        config
+    })
 }

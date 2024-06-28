@@ -36,6 +36,7 @@ secrecy = { version = "0.8", features = ["serde"] }
 uuid = { version = "1.8", features = ["v4"] }
 strum_macros = "0.26"
 derive_more = "0.99"
+lazy-regex = "3"
 
 # SQL 
 [dependencies.sqlx]

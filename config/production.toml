@@ -1,2 +1,11 @@
 [net_config]
 host = [0, 0, 0, 0]
+
+# NOTE:
+# Why no SSL in production?
+# Fly.io Postgres lives on the same private Ipv6 network 
+# and is connected to the application via Wireguard tunnels.
+# I.E. the data is encrypted.
+# https://fly.io/docs/networking/private-networking/
+[db_config]
+require_ssl = false

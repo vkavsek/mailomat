@@ -16,8 +16,6 @@ pub enum Error {
     Io(std::io::Error),
     #[from]
     SqlxMigrate(sqlx::migrate::MigrateError),
-    #[from]
-    Config(config::ConfigError),
 
     #[from]
     ModelSqlxTestInit(sqlx::Error),

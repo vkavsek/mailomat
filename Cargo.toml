@@ -29,6 +29,7 @@ serde-aux = "4"
 
 # Config 
 config = "0.14"
+toml = "0.8"
 # Time 
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # Others

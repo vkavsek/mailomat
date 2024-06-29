@@ -34,6 +34,8 @@ impl std::error::Error for ConfigError {}
 // ###################################
 // ->   STRUCTS
 // ###################################
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct AppConfigBuilder(HashMap<String, HashMap<String, Value>>);
 
 #[derive(AsRefStr)]
 pub enum Environment {
@@ -60,14 +62,30 @@ pub struct DbConfig {
     pub port: u16,
     pub host: String,
     pub db_name: String,
-    pub require_ssl: bool,
+    pub require_ssl: SslRequire,
 }
-#[derive(Serialize, Deserialize, Debug, Default)]
-pub struct AppConfigBuilder(HashMap<String, HashMap<String, Value>>);
+
+#[derive(Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SslRequire {
+    #[default]
+    Prefer,
+    Require,
+    Disable,
+}
 
 // ###################################
 // ->   IMPLs
 // ###################################
+impl From<SslRequire> for PgSslMode {
+    fn from(value: SslRequire) -> Self {
+        match value {
+            SslRequire::Require => PgSslMode::Require,
+            SslRequire::Disable => PgSslMode::Disable,
+            SslRequire::Prefer => PgSslMode::Prefer,
+        }
+    }
+}
+
 impl AppConfig {
     pub fn init() -> AppConfigBuilder {
         AppConfigBuilder::default()
@@ -79,19 +97,12 @@ impl DbConfig {
         self.connection_options_without_db().database(&self.db_name)
     }
     pub fn connection_options_without_db(&self) -> PgConnectOptions {
-        let ssl_mode = if self.require_ssl {
-            PgSslMode::Require
-        } else {
-            // If explanation needed: https://fly.io/docs/networking/private-networking/
-            PgSslMode::Disable
-        };
-
         PgConnectOptions::new()
             .host(&self.host)
             .username(&self.username)
             .password(self.password.expose_secret())
             .port(self.port)
-            .ssl_mode(ssl_mode)
+            .ssl_mode(self.require_ssl.into())
     }
 }
 
@@ -160,12 +171,16 @@ impl TryFrom<&str> for DbConfig {
             .parse()
             .map_err(|_| crate::Error::StringToDbConfigFail)?;
 
-        let mut require_ssl = true;
+        let mut require_ssl = SslRequire::default();
         if let Some(options) = options.strip_prefix('?') {
             for option in options.split(',') {
                 if let Some((id, val)) = option.split_once('=') {
-                    if id == "sslmode" && val == "disable" {
-                        require_ssl = false;
+                    if id == "sslmode" {
+                        match val {
+                            "disable" => require_ssl = SslRequire::Disable,
+                            "require" => require_ssl = SslRequire::Require,
+                            _ => {}
+                        }
                     }
                 }
             }
@@ -211,7 +226,7 @@ mod tests {
                 port: 5432,
                 host: "127.0.0.1".to_string(),
                 db_name: "newsletter".to_string(),
-                require_ssl: false,
+                require_ssl: SslRequire::Disable,
             },
         };
 
@@ -250,7 +265,19 @@ mod tests {
             assert_eq!("localhost", db_config.host);
             assert_eq!(6666, db_config.port);
             assert_eq!("my_db", db_config.db_name);
-            assert!(!db_config.require_ssl);
+            assert_eq!(SslRequire::Disable, db_config.require_ssl);
+        }
+
+        {
+            let db_url = "postgres://my_uname:pwd@localhost:6666/my_db?sslmode=require";
+            let db_config = DbConfig::try_from(db_url)?;
+
+            assert_eq!("my_uname", db_config.username);
+            assert_eq!("pwd", db_config.password.expose_secret());
+            assert_eq!("localhost", db_config.host);
+            assert_eq!(6666, db_config.port);
+            assert_eq!("my_db", db_config.db_name);
+            assert_eq!(SslRequire::Require, db_config.require_ssl);
         }
 
         {
@@ -262,7 +289,7 @@ mod tests {
             assert_eq!("localhost", db_config.host);
             assert_eq!(6666, db_config.port);
             assert_eq!("my_db", db_config.db_name);
-            assert!(db_config.require_ssl);
+            assert_eq!(SslRequire::Prefer, db_config.require_ssl);
         }
 
         Ok(())

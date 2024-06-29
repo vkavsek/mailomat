@@ -7,5 +7,6 @@ host = [0, 0, 0, 0]
 # and is connected to the application via Wireguard tunnels.
 # I.E. the data is encrypted.
 # https://fly.io/docs/networking/private-networking/
+# Possible values: Disable, Require, Prefer
 [db_config]
-require_ssl = false
+require_ssl = "Disable"

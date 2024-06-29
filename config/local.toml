@@ -1,5 +1,6 @@
 [net_config]
 host = [127, 0, 0, 1]
 
+# Possible values: Disable, Require, Prefer
 [db_config]
-require_ssl = false
+require_ssl = "Disable"

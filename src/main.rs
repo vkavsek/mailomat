@@ -17,8 +17,9 @@ async fn main() -> Result<()> {
         mailomat::init_dbg_tracing();
     }
 
-    let net_config = &get_or_init_config().net_config;
-    let mm = ModelManager::init()?;
+    // NOTE: Does this spawn_blocking even make sense? Probably not.
+    let net_config = tokio::task::spawn_blocking(move || &get_or_init_config().net_config).await?;
+    let mm = tokio::task::spawn_blocking(ModelManager::init).await??;
 
     let addr = SocketAddr::from((net_config.host, net_config.app_port));
     let listener = TcpListener::bind(addr).await?;

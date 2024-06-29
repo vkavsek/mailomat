@@ -239,7 +239,7 @@ mod tests {
     // }
 
     #[test]
-    fn test_app_config_add_source_and_succesful_build() -> ConfigResult<()> {
+    fn test_app_config_add_source_and_build_ok() -> ConfigResult<()> {
         let base_path = std::env::current_dir().expect("Failed to determine the current DIR.");
         let config_dir = base_path.join("config");
         let base_file = File::open(config_dir.join("base.toml"))?;
@@ -284,7 +284,7 @@ mod tests {
     }
 
     #[test]
-    fn test_db_config_from_str_success() -> Result<()> {
+    fn test_db_config_from_str_ok() -> Result<()> {
         {
             let db_url = "postgres://my_uname:pwd@localhost:6666/my_db";
             let db_config = DbConfig::try_from(db_url)?;

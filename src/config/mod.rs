@@ -1,4 +1,6 @@
-//! Tries to create an `AppConfig` from a config file:
+//! Tries to create an `AppConfig` from config files.
+//! Currently uses `AppConfigBuilder` to build up configuration from multiple files.
+//! Gets initialized with `OnceLock` so it only needs to get initialized once.
 
 mod structs;
 
@@ -6,7 +8,7 @@ use structs::Environment;
 
 use std::sync::OnceLock;
 
-use tracing::debug;
+use tracing::info;
 
 // Re-export config structs
 pub use structs::{AppConfig, DbConfig, NetConfig};
@@ -14,10 +16,11 @@ pub use structs::{AppConfig, DbConfig, NetConfig};
 /// Allocates a static `OnceLock` containing `AppConfig`.
 /// This ensures configuration only gets initialized the first time we call this function.
 /// Every other caller gets a &'static ref to AppConfig.
+/// Panics if anything goes wrong.
 pub fn get_or_init_config() -> &'static AppConfig {
     static CONFIG_INIT: OnceLock<AppConfig> = OnceLock::new();
     CONFIG_INIT.get_or_init(|| {
-        debug!(
+        info!(
             "{:<12} - Initializing the configuration",
             "get_or_init_config"
         );

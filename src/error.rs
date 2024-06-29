@@ -13,6 +13,8 @@ pub enum Error {
     Web(web::Error),
 
     #[from]
+    TokioJoin(tokio::task::JoinError),
+    #[from]
     Io(std::io::Error),
     #[from]
     SqlxMigrate(sqlx::migrate::MigrateError),

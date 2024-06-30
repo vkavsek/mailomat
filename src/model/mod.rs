@@ -15,8 +15,8 @@ pub struct ModelManager {
 }
 
 impl ModelManager {
-    pub fn init() -> Result<Self> {
-        let db = init_db()?;
+    pub async fn init() -> Result<Self> {
+        let db = init_db().await?;
         info!("{:<12} - Initializing the DB pool", "init_db");
 
         Ok(Self { db })
@@ -31,28 +31,29 @@ impl ModelManager {
     }
 }
 
-fn init_db() -> Result<PgPool> {
-    let config = get_or_init_config();
+async fn init_db() -> Result<PgPool> {
+    let config = tokio::task::spawn_blocking(get_or_init_config).await?;
 
     let con_opts = config
         .db_config
         .connection_options()
-        // NOTE: Disabled SSL for production, since fly.io's DATABASE_URL returns ?ssl=disable,
-        // because all of our applications essentially run on an internal network (I think).
-        .ssl_mode(sqlx::postgres::PgSslMode::Disable)
         .log_statements(tracing::log::LevelFilter::Debug);
 
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .acquire_timeout(Duration::from_millis(500))
-        .connect_lazy_with(con_opts);
+        .connect_with(con_opts)
+        .await
+        .map_err(|ex| crate::Error::ModelFailToCreatePool(ex.to_string()))?;
 
     Ok(pool)
 }
 
 async fn init_test_db() -> Result<PgPool> {
     // Initialize special AppConfig for Testing
-    let mut config = get_or_init_config().to_owned();
+    let mut config = tokio::task::spawn_blocking(get_or_init_config)
+        .await?
+        .to_owned();
 
     config_test_db(&mut config.db_config).await
 }

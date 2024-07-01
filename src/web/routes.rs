@@ -37,8 +37,7 @@ async fn api_subscribe(
     State(mm): State<ModelManager>,
     Json(subscriber): Json<DeserSubscriber>,
 ) -> Result<StatusCode> {
-    let subscriber =
-        tokio::task::spawn_blocking(move || ValidSubscriber::try_from(subscriber)).await??;
+    let subscriber = tokio::task::spawn_blocking(move || subscriber.try_into()).await??;
 
     insert_subscriber(mm, subscriber).await
 }

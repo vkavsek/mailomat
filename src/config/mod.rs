@@ -10,7 +10,7 @@ use tracing::info;
 use data::Environment;
 
 // Re-export config structs
-pub use data::{AppConfig, DbConfig, NetConfig};
+pub use data::{AppConfig, DbConfig, EmailConfig, NetConfig};
 
 /// Allocates a static `OnceLock` containing `AppConfig`.
 /// This ensures configuration only gets initialized the first time we call this function.
@@ -38,9 +38,9 @@ pub fn get_or_init_config() -> &'static AppConfig {
             .unwrap_or_else(|er| panic!("Fatal Error: Building config: {er}"));
 
         let mut config = AppConfig::init()
-            .add_source(base_file)
-            .and_then(|app_conf| app_conf.add_source(env_file))
-            .and_then(|app_conf| app_conf.build())
+            .add_source_file(base_file)
+            .add_source_file(env_file)
+            .build()
             .unwrap_or_else(|er| panic!("Fatal Error: Building config: {er}"));
 
         // Setup DbConfig for production

@@ -17,17 +17,17 @@ pub struct DeserSubscriber {
 /// A Subscriber with all the fields validated.
 #[derive(Debug)]
 pub struct ValidSubscriber {
-    pub email: SubscriberEmail,
-    pub name: SubscriberName,
+    pub email: ValidEmail,
+    pub name: ValidName,
 }
 
 /// Validated Subscriber Email
 #[derive(Debug)]
-pub struct SubscriberEmail(String);
+pub struct ValidEmail(String);
 
 /// Validated Subscriber Name
 #[derive(Debug)]
-pub struct SubscriberName(String);
+pub struct ValidName(String);
 
 // ###################################
 // ->   IMPLS
@@ -37,19 +37,19 @@ impl TryFrom<DeserSubscriber> for ValidSubscriber {
 
     fn try_from(deser_sub: DeserSubscriber) -> Result<Self, Self::Error> {
         Ok(ValidSubscriber {
-            email: SubscriberEmail::parse(deser_sub.email)?,
-            name: SubscriberName::parse(deser_sub.name)?,
+            email: ValidEmail::parse(deser_sub.email)?,
+            name: ValidName::parse(deser_sub.name)?,
         })
     }
 }
 
-impl AsRef<str> for SubscriberEmail {
+impl AsRef<str> for ValidEmail {
     fn as_ref(&self) -> &str {
         &self.0
     }
 }
 
-impl SubscriberEmail {
+impl ValidEmail {
     pub fn parse<S>(value: S) -> Result<Self, DataParsingError>
     where
         S: AsRef<str>,
@@ -61,20 +61,20 @@ impl SubscriberEmail {
         }
 
         if value.validate_email() {
-            Ok(SubscriberEmail(value.to_owned()))
+            Ok(ValidEmail(value.to_owned()))
         } else {
             Err(DataParsingError::EmailInvalid)
         }
     }
 }
 
-impl AsRef<str> for SubscriberName {
+impl AsRef<str> for ValidName {
     fn as_ref(&self) -> &str {
         &self.0
     }
 }
 
-impl SubscriberName {
+impl ValidName {
     pub fn parse<S>(value: S) -> Result<Self, DataParsingError>
     where
         S: AsRef<str>,
@@ -93,7 +93,7 @@ impl SubscriberName {
             return Err(DataParsingError::SubscriberNameForbidden);
         }
 
-        Ok(SubscriberName(value.to_owned()))
+        Ok(ValidName(value.to_owned()))
     }
 }
 
@@ -129,55 +129,55 @@ mod test {
     #[test]
     fn test_name_a_256_grapheme_long_name_is_valid() {
         let name = "ё".repeat(256);
-        assert_ok!(SubscriberName::parse(name));
+        assert_ok!(ValidName::parse(name));
     }
     #[test]
     fn test_name_longer_than_256_rejected() {
         let name = "a".repeat(257);
-        assert_err!(SubscriberName::parse(name));
+        assert_err!(ValidName::parse(name));
     }
     #[test]
     fn test_name_whitespace_only_rejected() {
         let name = " ".to_string();
-        assert_err!(SubscriberName::parse(name));
+        assert_err!(ValidName::parse(name));
     }
     #[test]
     fn test_name_empty_string_rejected() {
         let name = "".to_string();
-        assert_err!(SubscriberName::parse(name));
+        assert_err!(ValidName::parse(name));
     }
     #[test]
     fn test_name_containing_invalid_character_rejected() {
         for name in &['/', '(', ')', '"', '<', '>', '\\', '{', '}'] {
             let name = name.to_string();
-            assert_err!(SubscriberName::parse(name));
+            assert_err!(ValidName::parse(name));
         }
     }
     #[test]
     fn test_name_a_valid_is_parsed_successfully() {
         let name = "Ursula Le Guin".to_string();
-        assert_ok!(SubscriberName::parse(name));
+        assert_ok!(ValidName::parse(name));
     }
 
     #[test]
     fn test_email_empty_string_is_rejected() {
         let email = "".to_string();
-        assert_err!(SubscriberEmail::parse(email));
+        assert_err!(ValidEmail::parse(email));
     }
     #[test]
     fn test_email_longer_than_256_graphemes_is_rejected() {
         let name = "a".repeat(257);
-        assert_err!(SubscriberName::parse(name));
+        assert_err!(ValidName::parse(name));
     }
     #[test]
     fn test_email_missing_at_symbol_is_rejected() {
         let email = "ursuladomain.com".to_string();
-        assert_err!(SubscriberEmail::parse(email));
+        assert_err!(ValidEmail::parse(email));
     }
     #[test]
     fn test_email_missing_subject_is_rejected() {
         let email = "@domain.com".to_string();
-        assert_err!(SubscriberEmail::parse(email));
+        assert_err!(ValidEmail::parse(email));
     }
 
     #[derive(Debug, Clone)]
@@ -201,6 +201,6 @@ mod test {
     #[quickcheck_macros::quickcheck]
     fn test_email_valid_emails_are_parsed_successfully(valid_email: ValidEmailFixture) -> bool {
         dbg!(&valid_email.0);
-        SubscriberEmail::parse(valid_email.0).is_ok()
+        ValidEmail::parse(valid_email.0).is_ok()
     }
 }

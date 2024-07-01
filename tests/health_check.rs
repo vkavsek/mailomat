@@ -7,7 +7,10 @@ use std::{
 };
 
 use anyhow::Result;
-use mailomat::{init_dbg_tracing, model::ModelManager};
+use mailomat::{
+    config::get_or_init_config, init_dbg_tracing, model::ModelManager, web::data::ValidEmail,
+    AppState, EmailClient,
+};
 use reqwest::StatusCode;
 use serde_json::json;
 use tokio::net::TcpListener;
@@ -29,15 +32,21 @@ async fn spawn_app() -> Result<(SocketAddr, ModelManager)> {
     // _init_test_subscriber();
 
     let addr = TEST_SOCK_ADDR;
+    let config = get_or_init_config();
+    let email_addr = ValidEmail::parse(config.email_config.email_addr.as_str())
+        .map_err(Into::<mailomat::web::Error>::into)?;
+
+    let email_client = EmailClient::new(config.email_config.url.clone(), email_addr);
     let mm = ModelManager::test_init().await?;
+    let app_state = AppState::new(mm, email_client);
 
     let listener = TcpListener::bind(&addr).await?;
     let port = listener.local_addr()?.port();
     info!("Listening on {addr}");
 
-    tokio::spawn(mailomat::serve(listener, mm.clone()));
+    tokio::spawn(mailomat::serve(listener, app_state.clone()));
 
-    let res = (SocketAddr::from((addr.ip(), port)), mm);
+    let res = (SocketAddr::from((addr.ip(), port)), app_state.mm.clone());
     Ok(res)
 }
 

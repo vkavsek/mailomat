@@ -26,6 +26,7 @@ pub enum Environment {
 pub struct AppConfig {
     pub net_config: NetConfig,
     pub db_config: DbConfig,
+    pub email_config: EmailConfig,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -52,22 +53,63 @@ pub enum SslRequire {
     Disable,
 }
 
+#[derive(Deserialize, Clone, Debug)]
+pub struct EmailConfig {
+    pub email_addr: String,
+    pub url: String,
+}
+
 // ###################################
 // ->   IMPLs
 // ###################################
-impl From<SslRequire> for PgSslMode {
-    fn from(value: SslRequire) -> Self {
-        match value {
-            SslRequire::Require => PgSslMode::Require,
-            SslRequire::Disable => PgSslMode::Disable,
-            SslRequire::Prefer => PgSslMode::Prefer,
-        }
-    }
-}
-
 impl AppConfig {
     pub fn init() -> AppConfigBuilder {
         AppConfigBuilder::default()
+    }
+}
+
+impl AppConfigBuilder {
+    /// Extends this `AppConfigBuilder` with the contents of `other` builder.
+    fn extend_builder(&mut self, other: Self) {
+        for (entry, entry_hm) in other.0 {
+            if let Entry::Vacant(e) = self.0.entry(entry.clone()) {
+                e.insert(entry_hm);
+            } else {
+                let target_hm = self.0.get_mut(&entry).expect("Checked above!");
+                for (inner_entry, inner_value) in entry_hm {
+                    target_hm.insert(inner_entry, inner_value);
+                }
+            }
+        }
+    }
+
+    /// Panics if file reading or deserialization goes wrong.
+    pub fn add_source_file(mut self, mut file: std::fs::File) -> Self {
+        let mut file_content = String::new();
+
+        let file_len = file
+            .metadata()
+            .map(|data| data.len())
+            .unwrap_or_else(|e| panic!("Fatal Error: Building config: {e}"));
+
+        let read_len = file
+            .read_to_string(&mut file_content)
+            .unwrap_or_else(|e| panic!("Fatal Error: Building config: {e}"));
+
+        assert_eq!(file_len, read_len as u64);
+
+        let app_conf_builder: AppConfigBuilder = toml::from_str(&file_content)
+            .unwrap_or_else(|e| panic!("Fatal Error: Building config: {e}"));
+
+        self.extend_builder(app_conf_builder);
+
+        self
+    }
+
+    pub fn build(self) -> ConfigResult<AppConfig> {
+        let serialized = toml::to_string(&self)?;
+        let app_config = toml::from_str(&serialized)?;
+        Ok(app_config)
     }
 }
 
@@ -85,34 +127,13 @@ impl DbConfig {
     }
 }
 
-impl AppConfigBuilder {
-    pub fn add_source(mut self, mut file: std::fs::File) -> ConfigResult<Self> {
-        let mut file_content = String::new();
-
-        let file_len = file.metadata().map(|data| data.len())?;
-        let read_len = file.read_to_string(&mut file_content)?;
-        assert_eq!(file_len, read_len as u64);
-
-        let app_conf_builder: AppConfigBuilder = toml::from_str(&file_content)?;
-
-        for (entry, entry_hm) in app_conf_builder.0 {
-            if let Entry::Vacant(e) = self.0.entry(entry.clone()) {
-                e.insert(entry_hm);
-            } else {
-                let target_hm = self.0.get_mut(&entry).expect("Checked above!");
-                for (inner_entry, inner_value) in entry_hm {
-                    target_hm.insert(inner_entry, inner_value);
-                }
-            }
+impl From<SslRequire> for PgSslMode {
+    fn from(value: SslRequire) -> Self {
+        match value {
+            SslRequire::Require => PgSslMode::Require,
+            SslRequire::Disable => PgSslMode::Disable,
+            SslRequire::Prefer => PgSslMode::Prefer,
         }
-
-        Ok(self)
-    }
-
-    pub fn build(self) -> ConfigResult<AppConfig> {
-        let serialized = toml::to_string(&self)?;
-        let app_config = toml::from_str(&serialized)?;
-        Ok(app_config)
     }
 }
 
@@ -216,6 +237,10 @@ mod tests {
         let config_dir = base_path.join("config");
         let base_file = File::open(config_dir.join("base.toml"))?;
         let local_file = File::open(config_dir.join("local.toml"))?;
+        let email_config = EmailConfig {
+            email_addr: "admin@majkavsek.com".to_string(),
+            url: "https://api.postmarkapp.com/email".to_string(),
+        };
 
         let test_app_config = AppConfig {
             net_config: NetConfig {
@@ -230,11 +255,12 @@ mod tests {
                 db_name: "newsletter".to_string(),
                 require_ssl: SslRequire::Disable,
             },
+            email_config,
         };
 
         let app_config = AppConfig::init()
-            .add_source(base_file)?
-            .add_source(local_file)?
+            .add_source_file(base_file)
+            .add_source_file(local_file)
             .build()?;
 
         assert_eq!(test_app_config.net_config, app_config.net_config);
@@ -251,6 +277,14 @@ mod tests {
         assert_eq!(
             test_app_config.db_config.db_name,
             app_config.db_config.db_name
+        );
+        assert_eq!(
+            test_app_config.email_config.email_addr,
+            app_config.email_config.email_addr
+        );
+        assert_eq!(
+            test_app_config.email_config.url,
+            app_config.email_config.url
         );
 
         Ok(())

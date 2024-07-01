@@ -39,6 +39,11 @@ uuid = { version = "1.8", features = ["v4"] }
 lazy-regex = "3"
 unicode-segmentation = "1"
 
+# REQWEST
+[dependencies.reqwest]
+version = "0.12"
+default-features = false
+features = ["json", "rustls-tls"]
 # SQL 
 [dependencies.sqlx]
 version = "0.7"
@@ -47,7 +52,6 @@ features = ["runtime-tokio-rustls", "macros", "postgres", "chrono", "migrate"]
 
 [dev-dependencies]
 anyhow = "1"
-reqwest = { version = "0.12", features = ["json"] }
 claims = "0.7"
 fake = "2.9"
 rand = "0.8"

@@ -1,11 +1,10 @@
-mod data;
-mod email_client;
+pub mod data;
 mod error;
 mod log;
 mod midware;
 mod subscriptions;
 
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use axum::{
     body::Body,
@@ -23,19 +22,19 @@ use tower_http::{
 };
 use tracing::Span;
 
-use crate::model::ModelManager;
-
 pub use error::{Error, Result};
+
+use crate::AppState;
 
 const REQUEST_ID_HEADER: &str = "x-request-id";
 
 // ###################################
 // ->   ROUTES
 // ###################################
-pub fn routes(mm: ModelManager) -> Router {
+pub fn routes(app_state: Arc<AppState>) -> Router {
     Router::new()
         .route("/api/subscribe", post(subscriptions::api_subscribe))
-        .with_state(mm)
+        .with_state(app_state.mm.clone())
         .route("/health-check", get(health_check))
 }
 
@@ -57,7 +56,7 @@ async fn health_check() -> StatusCode {
 /// ```
 // Allow unused vars otherwise the compiler complains because of the cfg macros
 #[allow(unused_variables)]
-pub async fn serve(listener: TcpListener, mm: ModelManager) -> Result<()> {
+pub async fn serve(listener: TcpListener, app_state: Arc<AppState>) -> Result<()> {
     let x_request_id: HeaderName = HeaderName::from_static(REQUEST_ID_HEADER);
 
     let trace_layer = TraceLayer::new_for_http()
@@ -82,7 +81,7 @@ pub async fn serve(listener: TcpListener, mm: ModelManager) -> Result<()> {
             },
         );
 
-    let app = Router::new().merge(routes(mm)).layer(
+    let app = Router::new().merge(routes(app_state)).layer(
         ServiceBuilder::new()
             // Set UUID per request
             .layer(SetRequestIdLayer::new(

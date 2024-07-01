@@ -7,3 +7,8 @@ port = 5432
 username = "postgres"
 password = "password"
 db_name = "newsletter"
+
+[email_config]
+# Address currently used for sending emails.
+email_addr = "admin@majkavsek.com"
+url = "https://api.postmarkapp.com/email"

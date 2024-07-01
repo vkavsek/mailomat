@@ -1,15 +1,18 @@
+mod data;
+mod email_client;
 mod error;
 mod log;
 mod midware;
-mod routes;
-mod structs;
+mod subscriptions;
 
 use std::time::Duration;
 
 use axum::{
     body::Body,
-    http::{HeaderName, Request, Response},
-    middleware, Router,
+    http::{HeaderName, Request, Response, StatusCode},
+    middleware,
+    routing::{get, post},
+    Router,
 };
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
@@ -26,6 +29,23 @@ pub use error::{Error, Result};
 
 const REQUEST_ID_HEADER: &str = "x-request-id";
 
+// ###################################
+// ->   ROUTES
+// ###################################
+pub fn routes(mm: ModelManager) -> Router {
+    Router::new()
+        .route("/api/subscribe", post(subscriptions::api_subscribe))
+        .with_state(mm)
+        .route("/health-check", get(health_check))
+}
+
+#[tracing::instrument(name = "HEALTHCHECK")]
+async fn health_check() -> StatusCode {
+    StatusCode::OK
+}
+// ###################################
+// ->   SERVE
+// ###################################
 /// SERVE
 /// The core async function returning a future that will serve this application.
 ///
@@ -62,7 +82,7 @@ pub async fn serve(listener: TcpListener, mm: ModelManager) -> Result<()> {
             },
         );
 
-    let app = Router::new().merge(routes::routes(mm)).layer(
+    let app = Router::new().merge(routes(mm)).layer(
         ServiceBuilder::new()
             // Set UUID per request
             .layer(SetRequestIdLayer::new(

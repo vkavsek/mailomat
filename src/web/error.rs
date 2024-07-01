@@ -19,7 +19,7 @@ pub enum Error {
     HeaderToStrFail,
 
     #[from]
-    WebStructParsing(super::structs::WebStructParsingError),
+    DataParsing(super::data::DataParsingError),
 
     #[from]
     TokioJoin(#[serde_as(as = "DisplayFromStr")] tokio::task::JoinError),
@@ -55,8 +55,8 @@ impl Error {
         };
 
         match self {
-            Error::WebStructParsing(wsp_er) => {
-                (StatusCode::BAD_REQUEST, InvalidInput(wsp_er.to_string()))
+            Error::DataParsing(data_er) => {
+                (StatusCode::BAD_REQUEST, InvalidInput(data_er.to_string()))
             }
             Error::SqlxCore(sqlx::Error::Database(er)) if is_unique_violation_err(er) => (
                 StatusCode::NOT_ACCEPTABLE,

@@ -10,8 +10,6 @@ use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use strum_macros::AsRefStr;
 use toml::Value;
 
-use super::{ConfigError, ConfigResult};
-
 // ###################################
 // ->   STRUCTS
 // ###################################
@@ -113,7 +111,7 @@ impl AppConfigBuilder {
 
     pub fn build(self) -> ConfigResult<AppConfig> {
         let serialized = toml::to_string(&self)?;
-        let app_config: AppConfig = toml::from_str(&serialized)?;
+        let app_config = toml::from_str(&serialized)?;
         Ok(app_config)
     }
 }
@@ -177,6 +175,30 @@ impl TryFrom<&str> for DbConfig {
         })
     }
 }
+
+// ###################################
+// ->   RESULT & ERROR
+// ###################################
+use derive_more::From;
+
+pub type ConfigResult<T> = core::result::Result<T, ConfigError>;
+
+#[derive(Debug, From)]
+pub enum ConfigError {
+    StringToEnvironmentFail,
+    StringToDbConfigFail,
+
+    Io(std::io::Error),
+    TomlDeser(toml::de::Error),
+    TomlSer(toml::ser::Error),
+}
+// Error Boilerplate
+impl core::fmt::Display for ConfigError {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
+        write!(fmt, "{self:?}")
+    }
+}
+impl std::error::Error for ConfigError {}
 
 // ###################################
 // ->   TESTS

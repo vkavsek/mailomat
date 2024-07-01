@@ -3,27 +3,6 @@ use unicode_segmentation::UnicodeSegmentation;
 use validator::ValidateEmail;
 
 // ###################################
-// ->   ERROR
-// ###################################
-#[derive(Debug, Serialize)]
-pub enum WebStructParsingError {
-    SubscriberNameEmpty,
-    SubscriberNameTooLong,
-    SubscriberNameForbidden,
-
-    EmailInvalid,
-    EmailTooLong,
-}
-// Error Boilerplate
-impl core::fmt::Display for WebStructParsingError {
-    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
-        write!(fmt, "{self:?}")
-    }
-}
-
-impl std::error::Error for WebStructParsingError {}
-
-// ###################################
 // ->   STRUCTS
 // ###################################
 /// Deserializable Subscriber
@@ -42,9 +21,11 @@ pub struct ValidSubscriber {
     pub name: SubscriberName,
 }
 
+/// Validated Subscriber Email
 #[derive(Debug)]
 pub struct SubscriberEmail(String);
 
+/// Validated Subscriber Name
 #[derive(Debug)]
 pub struct SubscriberName(String);
 
@@ -52,7 +33,7 @@ pub struct SubscriberName(String);
 // ->   IMPLS
 // ###################################
 impl TryFrom<DeserSubscriber> for ValidSubscriber {
-    type Error = WebStructParsingError;
+    type Error = DataParsingError;
 
     fn try_from(deser_sub: DeserSubscriber) -> Result<Self, Self::Error> {
         Ok(ValidSubscriber {
@@ -69,20 +50,20 @@ impl AsRef<str> for SubscriberEmail {
 }
 
 impl SubscriberEmail {
-    pub fn parse<S>(value: S) -> Result<Self, WebStructParsingError>
+    pub fn parse<S>(value: S) -> Result<Self, DataParsingError>
     where
         S: AsRef<str>,
     {
         let value = value.as_ref();
 
         if value.graphemes(true).count() > 256 {
-            return Err(WebStructParsingError::EmailTooLong);
+            return Err(DataParsingError::EmailTooLong);
         }
 
         if value.validate_email() {
             Ok(SubscriberEmail(value.to_owned()))
         } else {
-            Err(WebStructParsingError::EmailInvalid)
+            Err(DataParsingError::EmailInvalid)
         }
     }
 }
@@ -94,27 +75,48 @@ impl AsRef<str> for SubscriberName {
 }
 
 impl SubscriberName {
-    pub fn parse<S>(value: S) -> Result<Self, WebStructParsingError>
+    pub fn parse<S>(value: S) -> Result<Self, DataParsingError>
     where
         S: AsRef<str>,
     {
         let value = value.as_ref();
         if value.graphemes(true).count() > 256 {
-            return Err(WebStructParsingError::SubscriberNameTooLong);
+            return Err(DataParsingError::SubscriberNameTooLong);
         }
 
         if value.trim().is_empty() {
-            return Err(WebStructParsingError::SubscriberNameEmpty);
+            return Err(DataParsingError::SubscriberNameEmpty);
         }
 
         let forbidden_characters = ['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
         if value.chars().any(|c| forbidden_characters.contains(&c)) {
-            return Err(WebStructParsingError::SubscriberNameForbidden);
+            return Err(DataParsingError::SubscriberNameForbidden);
         }
 
         Ok(SubscriberName(value.to_owned()))
     }
 }
+
+// ###################################
+// ->   ERROR
+// ###################################
+#[derive(Debug, Serialize)]
+pub enum DataParsingError {
+    SubscriberNameEmpty,
+    SubscriberNameTooLong,
+    SubscriberNameForbidden,
+
+    EmailInvalid,
+    EmailTooLong,
+}
+// Error Boilerplate
+impl core::fmt::Display for DataParsingError {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
+        write!(fmt, "{self:?}")
+    }
+}
+
+impl std::error::Error for DataParsingError {}
 
 // ###################################
 // ->   TESTS
@@ -194,7 +196,8 @@ mod test {
         }
     }
 
-    // A quickcheck test that generates random valid emails and tests them.
+    /// A quickcheck test that generates random valid emails and tests them.
+    /// Random generation is based on `Arbitrary` implementation above
     #[quickcheck_macros::quickcheck]
     fn test_email_valid_emails_are_parsed_successfully(valid_email: ValidEmailFixture) -> bool {
         dbg!(&valid_email.0);

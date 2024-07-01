@@ -2,40 +2,15 @@
 //! Currently uses `AppConfigBuilder` to build up configuration from multiple files.
 //! Gets initialized with `OnceLock` so it only needs to get initialized once.
 
-mod structs;
-
-use structs::Environment;
+mod data;
 
 use std::sync::OnceLock;
-
 use tracing::info;
 
+use data::Environment;
+
 // Re-export config structs
-pub use structs::{AppConfig, DbConfig, NetConfig};
-
-// ###################################
-// ->   RESULT & ERROR
-// ###################################
-use derive_more::From;
-
-pub type ConfigResult<T> = core::result::Result<T, ConfigError>;
-
-#[derive(Debug, From)]
-pub enum ConfigError {
-    StringToEnvironmentFail,
-    StringToDbConfigFail,
-
-    Io(std::io::Error),
-    TomlDeser(toml::de::Error),
-    TomlSer(toml::ser::Error),
-}
-// Error Boilerplate
-impl core::fmt::Display for ConfigError {
-    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
-        write!(fmt, "{self:?}")
-    }
-}
-impl std::error::Error for ConfigError {}
+pub use data::{AppConfig, DbConfig, NetConfig};
 
 /// Allocates a static `OnceLock` containing `AppConfig`.
 /// This ensures configuration only gets initialized the first time we call this function.

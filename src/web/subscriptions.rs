@@ -1,29 +1,12 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    routing::{get, post},
-    Json, Router,
-};
+use axum::{extract::State, http::StatusCode, Json};
 use chrono::Utc;
 use tracing::info;
 
 use super::{
-    structs::{DeserSubscriber, ValidSubscriber},
+    data::{DeserSubscriber, ValidSubscriber},
     Result,
 };
 use crate::model::ModelManager;
-
-pub fn routes(mm: ModelManager) -> Router {
-    Router::new()
-        .route("/api/subscribe", post(api_subscribe))
-        .with_state(mm)
-        .route("/health-check", get(health_check))
-}
-
-#[tracing::instrument(name = "HEALTHCHECK")]
-async fn health_check() -> StatusCode {
-    StatusCode::OK
-}
 
 #[tracing::instrument(
     name = "Saving new subscriber to the database",
@@ -33,7 +16,7 @@ async fn health_check() -> StatusCode {
         subscriber_email = %subscriber.email
     )
 )]
-async fn api_subscribe(
+pub async fn api_subscribe(
     State(mm): State<ModelManager>,
     Json(subscriber): Json<DeserSubscriber>,
 ) -> Result<StatusCode> {

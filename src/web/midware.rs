@@ -43,6 +43,7 @@ pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Re
         (*status, Json(client_error_body)).into_response()
     });
 
+    // TODO: Should this be deleted? Probably...
     // log_request is currently infallible so we just ignore the resulting Ok(())
     let _ = log::log_request(
         uuid,

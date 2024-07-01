@@ -19,8 +19,10 @@ pub enum Error {
     HeaderToStrFail,
 
     #[from]
-    WebStructParsing(#[serde_as(as = "DisplayFromStr")] super::structs::WebStructParsingError),
+    WebStructParsing(super::structs::WebStructParsingError),
 
+    #[from]
+    TokioJoin(#[serde_as(as = "DisplayFromStr")] tokio::task::JoinError),
     #[from]
     Io(#[serde_as(as = "DisplayFromStr")] std::io::Error),
     #[from]

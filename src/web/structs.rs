@@ -1,17 +1,18 @@
+use serde::{Deserialize, Serialize};
 use unicode_segmentation::UnicodeSegmentation;
-
-use serde::Deserialize;
+use validator::ValidateEmail;
 
 // ###################################
 // ->   ERROR
 // ###################################
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum WebStructParsingError {
     SubscriberNameEmpty,
     SubscriberNameTooLong,
     SubscriberNameForbidden,
 
     EmailInvalid,
+    EmailTooLong,
 }
 // Error Boilerplate
 impl core::fmt::Display for WebStructParsingError {
@@ -35,13 +36,16 @@ pub struct DeserSubscriber {
 
 /// Validated Subscriber
 /// A Subscriber with all the fields validated.
+#[derive(Debug)]
 pub struct ValidSubscriber {
     pub email: SubscriberEmail,
     pub name: SubscriberName,
 }
 
+#[derive(Debug)]
 pub struct SubscriberEmail(String);
 
+#[derive(Debug)]
 pub struct SubscriberName(String);
 
 // ###################################
@@ -58,41 +62,49 @@ impl TryFrom<DeserSubscriber> for ValidSubscriber {
     }
 }
 
-impl SubscriberEmail {
-    pub fn get(&self) -> &str {
-        self.0.as_str()
+impl AsRef<str> for SubscriberEmail {
+    fn as_ref(&self) -> &str {
+        &self.0
     }
+}
+
+impl SubscriberEmail {
     pub fn parse<S>(value: S) -> Result<Self, WebStructParsingError>
     where
         S: AsRef<str>,
     {
-        let valid_email = lazy_regex::regex_is_match!(
-            r#"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"#,
-            value.as_ref()
-        );
+        let value = value.as_ref();
 
-        if valid_email {
-            Ok(SubscriberEmail(value.as_ref().to_owned()))
+        if value.graphemes(true).count() > 256 {
+            return Err(WebStructParsingError::EmailTooLong);
+        }
+
+        if value.validate_email() {
+            Ok(SubscriberEmail(value.to_owned()))
         } else {
             Err(WebStructParsingError::EmailInvalid)
         }
     }
 }
 
-impl SubscriberName {
-    pub fn get(&self) -> &str {
-        self.0.as_str()
+impl AsRef<str> for SubscriberName {
+    fn as_ref(&self) -> &str {
+        &self.0
     }
+}
+
+impl SubscriberName {
     pub fn parse<S>(value: S) -> Result<Self, WebStructParsingError>
     where
         S: AsRef<str>,
     {
         let value = value.as_ref();
-        if value.trim().is_empty() {
-            return Err(WebStructParsingError::SubscriberNameEmpty);
-        }
         if value.graphemes(true).count() > 256 {
             return Err(WebStructParsingError::SubscriberNameTooLong);
+        }
+
+        if value.trim().is_empty() {
+            return Err(WebStructParsingError::SubscriberNameEmpty);
         }
 
         let forbidden_characters = ['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
@@ -101,5 +113,65 @@ impl SubscriberName {
         }
 
         Ok(SubscriberName(value.to_owned()))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use claims::{assert_err, assert_ok};
+
+    #[test]
+    fn test_name_a_256_grapheme_long_name_is_valid() {
+        let name = "ё".repeat(256);
+        assert_ok!(SubscriberName::parse(name));
+    }
+    #[test]
+    fn test_name_longer_than_256_graphemes_is_rejected() {
+        let name = "a".repeat(257);
+        assert_err!(SubscriberName::parse(name));
+    }
+    #[test]
+    fn test_name_whitespace_only_names_are_rejected() {
+        let name = " ".to_string();
+        assert_err!(SubscriberName::parse(name));
+    }
+    #[test]
+    fn test_name_empty_string_is_rejected() {
+        let name = "".to_string();
+        assert_err!(SubscriberName::parse(name));
+    }
+    #[test]
+    fn test_name_names_containing_an_invalid_character_are_rejected() {
+        for name in &['/', '(', ')', '"', '<', '>', '\\', '{', '}'] {
+            let name = name.to_string();
+            assert_err!(SubscriberName::parse(name));
+        }
+    }
+    #[test]
+    fn test_name_a_valid_name_is_parsed_successfully() {
+        let name = "Ursula Le Guin".to_string();
+        assert_ok!(SubscriberName::parse(name));
+    }
+
+    #[test]
+    fn test_email_empty_string_is_rejected() {
+        let email = "".to_string();
+        assert_err!(SubscriberEmail::parse(email));
+    }
+    #[test]
+    fn test_email_longer_than_256_graphemes_is_rejected() {
+        let name = "a".repeat(257);
+        assert_err!(SubscriberName::parse(name));
+    }
+    #[test]
+    fn test_email_email_missing_at_symbol_is_rejected() {
+        let email = "ursuladomain.com".to_string();
+        assert_err!(SubscriberEmail::parse(email));
+    }
+    #[test]
+    fn test_email_email_missing_subject_is_rejected() {
+        let email = "@domain.com".to_string();
+        assert_err!(SubscriberEmail::parse(email));
     }
 }

@@ -37,7 +37,8 @@ async fn api_subscribe(
     State(mm): State<ModelManager>,
     Json(subscriber): Json<DeserSubscriber>,
 ) -> Result<StatusCode> {
-    let subscriber = ValidSubscriber::try_from(subscriber)?;
+    let subscriber =
+        tokio::task::spawn_blocking(move || ValidSubscriber::try_from(subscriber)).await??;
 
     insert_subscriber(mm, subscriber).await
 }
@@ -51,8 +52,8 @@ async fn insert_subscriber(mm: ModelManager, subscriber: ValidSubscriber) -> Res
         VALUES ($1, $2, $3)
     "#,
     )
-    .bind(subscriber.email.get())
-    .bind(subscriber.name.get())
+    .bind(subscriber.email.as_ref())
+    .bind(subscriber.name.as_ref())
     .bind(Utc::now())
     .execute(db)
     .await?;

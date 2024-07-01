@@ -3,7 +3,6 @@ use std::{
     io::Read,
 };
 
-use derive_more::From;
 use lazy_regex::regex_captures;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
@@ -11,25 +10,7 @@ use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use strum_macros::AsRefStr;
 use toml::Value;
 
-// ###################################
-// ->   RESULT & ERROR
-// ###################################
-
-pub type ConfigResult<T> = core::result::Result<T, ConfigError>;
-
-#[derive(Debug, From)]
-pub enum ConfigError {
-    Io(std::io::Error),
-    TomlDeser(toml::de::Error),
-    TomlSer(toml::ser::Error),
-}
-// Error Boilerplate
-impl core::fmt::Display for ConfigError {
-    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
-        write!(fmt, "{self:?}")
-    }
-}
-impl std::error::Error for ConfigError {}
+use super::{ConfigError, ConfigResult};
 
 // ###################################
 // ->   STRUCTS
@@ -142,7 +123,7 @@ impl AppConfigBuilder {
 // ###################################
 
 impl TryFrom<String> for Environment {
-    type Error = crate::Error;
+    type Error = ConfigError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         match value.to_ascii_lowercase().as_str() {
@@ -154,7 +135,7 @@ impl TryFrom<String> for Environment {
 }
 
 impl TryFrom<&str> for DbConfig {
-    type Error = crate::Error;
+    type Error = ConfigError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         // postgres://{username}:{password}@{hostname}:{port}/{database}?{options}
@@ -162,14 +143,14 @@ impl TryFrom<&str> for DbConfig {
             r#"^postgres:\/\/([^:]+):([^@]+)@([^:\/]+):(\d+)\/([^\s\/?]+)(\?[^\s]*)?$"#,
             value
         )
-        .ok_or(crate::Error::StringToDbConfigFail)?;
+        .ok_or(Self::Error::StringToDbConfigFail)?;
 
         let (username, db_name, host) =
             (username.to_string(), db_name.to_string(), host.to_string());
         let password = SecretString::new(password.to_string());
         let port = port
             .parse()
-            .map_err(|_| crate::Error::StringToDbConfigFail)?;
+            .map_err(|_| Self::Error::StringToDbConfigFail)?;
 
         let mut require_ssl = SslRequire::default();
         if let Some(options) = options.strip_prefix('?') {
@@ -206,7 +187,6 @@ mod tests {
     use std::{fs::File, str::FromStr};
 
     use super::*;
-    use crate::Result;
 
     #[test]
     fn test_app_config_add_source_and_build_ok() -> ConfigResult<()> {
@@ -255,7 +235,7 @@ mod tests {
     }
 
     #[test]
-    fn test_db_config_from_str_ok() -> Result<()> {
+    fn test_db_config_from_str_ok() -> ConfigResult<()> {
         {
             let db_url = "postgres://my_uname:pwd@localhost:6666/my_db?sslmode=disable";
             let db_config = DbConfig::try_from(db_url)?;

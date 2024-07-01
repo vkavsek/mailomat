@@ -6,9 +6,6 @@ pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, From)]
 pub enum Error {
-    StringToEnvironmentFail,
-    StringToDbConfigFail,
-
     #[from]
     Web(web::Error),
 

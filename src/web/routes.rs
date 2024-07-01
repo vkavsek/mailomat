@@ -7,9 +7,11 @@ use axum::{
 use chrono::Utc;
 use tracing::info;
 
-use crate::{model::ModelManager, web::Result};
-
-use super::Subscriber;
+use super::{
+    structs::{DeserSubscriber, ValidSubscriber},
+    Result,
+};
+use crate::model::ModelManager;
 
 pub fn routes(mm: ModelManager) -> Router {
     Router::new()
@@ -23,14 +25,25 @@ async fn health_check() -> StatusCode {
     StatusCode::OK
 }
 
-#[tracing::instrument(name = "Saving new subscriber to the database", skip(mm, subscriber))]
+#[tracing::instrument(
+    name = "Saving new subscriber to the database",
+    skip(mm, subscriber),
+    fields(
+        subscriber_name = %subscriber.name,
+        subscriber_email = %subscriber.email
+    )
+)]
 async fn api_subscribe(
     State(mm): State<ModelManager>,
-    Json(subscriber): Json<Subscriber>,
+    Json(subscriber): Json<DeserSubscriber>,
 ) -> Result<StatusCode> {
-    let db = mm.db();
+    let subscriber = ValidSubscriber::try_from(subscriber)?;
 
-    // TODO: Check email vailidity
+    insert_subscriber(mm, subscriber).await
+}
+
+async fn insert_subscriber(mm: ModelManager, subscriber: ValidSubscriber) -> Result<StatusCode> {
+    let db = mm.db();
 
     sqlx::query(
         r#"
@@ -38,8 +51,8 @@ async fn api_subscribe(
         VALUES ($1, $2, $3)
     "#,
     )
-    .bind(subscriber.email)
-    .bind(subscriber.name)
+    .bind(subscriber.email.get())
+    .bind(subscriber.name.get())
     .bind(Utc::now())
     .execute(db)
     .await?;

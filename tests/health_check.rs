@@ -107,7 +107,7 @@ async fn test_api_subscribe_unprocessable_entity() -> Result<()> {
                 "name": null,
                 "email": "jd@example.com",
             }),
-            "Missing name",
+            "Null name",
         ),
         (json!({}), "Empty json"),
     ];
@@ -122,6 +122,54 @@ async fn test_api_subscribe_unprocessable_entity() -> Result<()> {
             "Wrong response: ({}), Expected: ({}); for request with: {params}",
             res.status(),
             StatusCode::UNPROCESSABLE_ENTITY
+        );
+    }
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_api_subscribe_returns_a_400_when_fields_are_present_but_invalid() -> Result<()> {
+    let (addr, _mm) = spawn_app().await?;
+    let addr = format!("http://{addr}/api/subscribe");
+
+    let test_cases = vec![
+        (
+            json!({
+                "name": "",
+                "email": "jd@example.com",
+            }),
+            "Empty name",
+        ),
+        (
+            json!({
+                "name": "John Doe",
+                "email": "",
+            }),
+            "Empty email",
+        ),
+        (
+            json!({
+                "name": "John Doe",
+                "email": "not an email",
+            }),
+            "Invalid email",
+        ),
+    ];
+
+    let client = reqwest::Client::new();
+    for (body, description) in test_cases {
+        let response = client
+            .post(&addr)
+            .json(&body)
+            .send()
+            .await
+            .expect("Failed to execute request.");
+        assert_eq!(
+            400,
+            response.status().as_u16(),
+            "The API did not return a 400 BAD REQUEST the payload was {}.",
+            description
         );
     }
 

@@ -5,7 +5,6 @@ use axum::{
 use derive_more::From;
 use serde::Serialize;
 use serde_with::{serde_as, DisplayFromStr};
-use sqlx::postgres::PgDatabaseError;
 use std::sync::Arc;
 use strum_macros::AsRefStr;
 // use tracing::debug;
@@ -18,6 +17,9 @@ pub type Result<T> = core::result::Result<T, Error>;
 pub enum Error {
     UuidNotInHeader,
     HeaderToStrFail,
+
+    #[from]
+    WebStructParsing(#[serde_as(as = "DisplayFromStr")] super::structs::WebStructParsingError),
 
     #[from]
     Io(#[serde_as(as = "DisplayFromStr")] std::io::Error),
@@ -36,21 +38,28 @@ impl std::error::Error for Error {}
 
 impl Error {
     pub fn status_code_and_client_error(&self) -> (StatusCode, ClientError) {
+        use sqlx::{error::DatabaseError, postgres::PgDatabaseError};
         use ClientError::*;
+
+        // If we get an error for unique violation from our DB, we want to let the user know that they need to
+        // input a different email / they are already subscribed.
+        #[allow(clippy::borrowed_box)]
+        let is_unique_violation_err = |er: &Box<dyn DatabaseError>| {
+            if let Some(er) = er.try_downcast_ref::<PgDatabaseError>() {
+                er.code() == "23505"
+            } else {
+                false
+            }
+        };
+
         match self {
-            // If we get an error for unique violation we want to let the user know that they need to
-            // input a different email / they are already subscribed.
-            Error::SqlxCore(sqlx::Error::Database(er))
-                // TODO: this is kinda ugly
-                if {
-                    if let Some(er) = er.try_downcast_ref::<PgDatabaseError>() {
-                        er.code() == "23505"
-                    } else {
-                        false
-                    }
-                } => {
-                        (StatusCode::NOT_ACCEPTABLE, InvalidInput("The email you provided is already used."))
-                }
+            Error::WebStructParsing(wsp_er) => {
+                (StatusCode::BAD_REQUEST, InvalidInput(wsp_er.to_string()))
+            }
+            Error::SqlxCore(sqlx::Error::Database(er)) if is_unique_violation_err(er) => (
+                StatusCode::NOT_ACCEPTABLE,
+                InvalidInput("The email you provided is already used.".to_string()),
+            ),
             _ => (StatusCode::INTERNAL_SERVER_ERROR, ServiceError),
         }
     }
@@ -73,6 +82,6 @@ impl IntoResponse for Error {
 #[derive(Debug, Serialize, AsRefStr)]
 #[serde(tag = "message", content = "detail")]
 pub enum ClientError {
-    InvalidInput(&'static str),
+    InvalidInput(String),
     ServiceError,
 }

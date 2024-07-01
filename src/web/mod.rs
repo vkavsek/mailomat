@@ -2,6 +2,7 @@ mod error;
 mod log;
 mod midware;
 mod routes;
+mod structs;
 
 use std::time::Duration;
 
@@ -10,7 +11,6 @@ use axum::{
     http::{HeaderName, Request, Response},
     middleware, Router,
 };
-use serde::Deserialize;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{
@@ -25,12 +25,6 @@ use crate::model::ModelManager;
 pub use error::{Error, Result};
 
 const REQUEST_ID_HEADER: &str = "x-request-id";
-
-#[derive(Deserialize, Debug)]
-pub struct Subscriber {
-    pub name: String,
-    pub email: String,
-}
 
 /// SERVE
 /// The core async function returning a future that will serve this application.

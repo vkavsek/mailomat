@@ -1,5 +1,4 @@
 //! Integration tests
-//!
 
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -33,10 +32,14 @@ async fn spawn_app() -> Result<(SocketAddr, ModelManager)> {
 
     let addr = TEST_SOCK_ADDR;
     let config = get_or_init_config();
-    let email_addr = ValidEmail::parse(config.email_config.email_addr.as_str())
+    let email_addr = ValidEmail::parse(config.email_config.sender_addr.as_str())
         .map_err(Into::<mailomat::web::Error>::into)?;
 
-    let email_client = EmailClient::new(config.email_config.url.clone(), email_addr);
+    let email_client = EmailClient::new(
+        config.email_config.url.clone(),
+        email_addr,
+        config.email_config.auth_token.clone(),
+    )?;
     let mm = ModelManager::test_init().await?;
     let app_state = AppState::new(mm, email_client);
 

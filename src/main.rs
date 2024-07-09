@@ -1,9 +1,6 @@
 use std::net::SocketAddr;
 
-use mailomat::{
-    config::get_or_init_config, model::ModelManager, web::data::ValidEmail, AppState, EmailClient,
-    Result,
-};
+use mailomat::{config::get_or_init_config, model::ModelManager, AppState, EmailClient, Result};
 
 use tokio::net::TcpListener;
 use tracing::info;
@@ -22,10 +19,13 @@ async fn main() -> Result<()> {
 
     // Blocking here probably doesn't matter since we only have the main thread.
     let config = get_or_init_config();
-    let email_addr = ValidEmail::parse(config.email_config.email_addr.as_str())
-        .map_err(Into::<mailomat::web::Error>::into)?;
+    let email_addr = config.email_config.valid_sender()?;
 
-    let email_client = EmailClient::new(config.email_config.url.clone(), email_addr);
+    let email_client = EmailClient::new(
+        config.email_config.url.clone(),
+        email_addr,
+        config.email_config.auth_token.clone(),
+    )?;
     let mm = ModelManager::init().await?;
 
     let app_state = AppState::new(mm, email_client);
@@ -34,7 +34,22 @@ async fn main() -> Result<()> {
     let listener = TcpListener::bind(addr).await?;
     info!("Listening on: {addr}");
 
-    mailomat::serve(listener, app_state.clone()).await?;
+    mailomat::serve(listener, app_state).await?;
 
     Ok(())
 }
+
+// fn main() {
+//     let em = mailomat::email_client::EmailContent {
+//         from: "me",
+//         to: "me",
+//         subject: "subjet",
+//         html_body: "html",
+//         text_body: "text",
+//         message_stream: "outbound",
+//     };
+//
+//     let js = serde_json::to_string_pretty(&em).unwrap();
+//
+//     println!("{}", js);
+// }

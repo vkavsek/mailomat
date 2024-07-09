@@ -55,8 +55,16 @@ pub enum SslRequire {
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct EmailConfig {
-    pub email_addr: String,
+    pub sender_addr: String,
     pub url: String,
+    pub auth_token: SecretString,
+}
+impl EmailConfig {
+    pub fn valid_sender(&self) -> ConfigResult<ValidEmail> {
+        let addr = ValidEmail::parse(self.sender_addr.clone())
+            .map_err(|er| ConfigError::InvalidEmail(er.to_string()))?;
+        Ok(addr)
+    }
 }
 
 // ###################################
@@ -202,12 +210,15 @@ impl TryFrom<&str> for DbConfig {
 // ###################################
 use derive_more::From;
 
+use crate::web::data::ValidEmail;
+
 pub type ConfigResult<T> = core::result::Result<T, ConfigError>;
 
 #[derive(Debug, From)]
 pub enum ConfigError {
     StringToEnvironmentFail,
     StringToDbConfigFail,
+    InvalidEmail(String),
 
     Io(std::io::Error),
     TomlDeser(toml::de::Error),
@@ -238,8 +249,9 @@ mod tests {
         let base_file = File::open(config_dir.join("base.toml"))?;
         let local_file = File::open(config_dir.join("local.toml"))?;
         let email_config = EmailConfig {
-            email_addr: "admin@majkavsek.com".to_string(),
-            url: "https://api.postmarkapp.com/email".to_string(),
+            sender_addr: "admin@majkavsek.com".to_string(),
+            url: "https://api.postmarkapp.com".to_string(),
+            auth_token: "dev_token".to_string().into(),
         };
 
         let test_app_config = AppConfig {
@@ -279,12 +291,16 @@ mod tests {
             app_config.db_config.db_name
         );
         assert_eq!(
-            test_app_config.email_config.email_addr,
-            app_config.email_config.email_addr
+            test_app_config.email_config.sender_addr,
+            app_config.email_config.sender_addr
         );
         assert_eq!(
             test_app_config.email_config.url,
             app_config.email_config.url
+        );
+        assert_eq!(
+            test_app_config.email_config.auth_token.expose_secret(),
+            app_config.email_config.auth_token.expose_secret()
         );
 
         Ok(())

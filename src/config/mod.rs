@@ -10,7 +10,7 @@ use tracing::info;
 use data::Environment;
 
 // Re-export config structs
-pub use data::{AppConfig, DbConfig, EmailConfig, NetConfig};
+pub use data::{AppConfig, ConfigError, DbConfig, EmailConfig, NetConfig};
 
 /// Allocates a static `OnceLock` containing `AppConfig`.
 /// This ensures configuration only gets initialized the first time we call this function.

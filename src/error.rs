@@ -1,13 +1,17 @@
 use derive_more::From;
 
-use crate::web;
+use crate::{config, email_client, web};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, From)]
 pub enum Error {
     #[from]
+    Config(config::ConfigError),
+    #[from]
     Web(web::Error),
+    #[from]
+    EmailClient(email_client::Error),
 
     #[from]
     TokioJoin(tokio::task::JoinError),

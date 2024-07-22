@@ -3,6 +3,7 @@
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::OnceLock,
+    time::Duration,
 };
 
 use anyhow::Result;
@@ -39,6 +40,7 @@ async fn spawn_app() -> Result<(SocketAddr, ModelManager)> {
         config.email_config.url.clone(),
         email_addr,
         config.email_config.auth_token.clone(),
+        Duration::from_millis(200),
     )?;
     let mm = ModelManager::test_init().await?;
     let app_state = AppState::new(mm, email_client);

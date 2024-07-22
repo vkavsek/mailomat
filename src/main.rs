@@ -25,6 +25,7 @@ async fn main() -> Result<()> {
         config.email_config.url.clone(),
         email_addr,
         config.email_config.auth_token.clone(),
+        config.email_config.timeout(),
     )?;
     let mm = ModelManager::init().await?;
 

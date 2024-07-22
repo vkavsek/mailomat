@@ -1,24 +1,16 @@
-use std::time::Duration;
-
 use reqwest::Client;
 use secrecy::{ExposeSecret, SecretString};
 use serde::Serialize;
+use strum_macros::AsRefStr;
 
 use crate::web::data::ValidEmail;
 
-#[derive(Debug)]
+#[derive(Debug, AsRefStr)]
 pub enum MessageStream {
+    #[strum(serialize = "broadcast")]
     Broadcast,
+    #[strum(serialize = "outbound")]
     Outbound,
-}
-impl AsRef<str> for MessageStream {
-    fn as_ref(&self) -> &str {
-        use MessageStream::*;
-        match self {
-            Broadcast => "broadcast",
-            Outbound => "outbound",
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -34,11 +26,12 @@ impl EmailClient {
         url: S,
         sender: ValidEmail,
         auth_token: SecretString,
+        timeout: std::time::Duration,
     ) -> Result<Self> {
         let url =
             reqwest::Url::parse(url.as_ref()).map_err(|e| Error::UrlParsing(e.to_string()))?;
 
-        let http_client = Client::builder().timeout(Duration::from_secs(10)).build()?;
+        let http_client = Client::builder().timeout(timeout).build()?;
 
         Ok(EmailClient {
             http_client,
@@ -169,7 +162,12 @@ mod tests {
     }
 
     fn email_client(url: String) -> Result<EmailClient> {
-        let out = EmailClient::new(url, email()?, Secret::new(Faker.fake()))?;
+        let out = EmailClient::new(
+            url,
+            email()?,
+            Secret::new(Faker.fake()),
+            Duration::from_millis(200),
+        )?;
         Ok(out)
     }
 

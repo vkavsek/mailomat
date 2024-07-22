@@ -58,12 +58,16 @@ pub struct EmailConfig {
     pub sender_addr: String,
     pub url: String,
     pub auth_token: SecretString,
+    pub timeout_millis: u64,
 }
 impl EmailConfig {
     pub fn valid_sender(&self) -> ConfigResult<ValidEmail> {
         let addr = ValidEmail::parse(self.sender_addr.clone())
             .map_err(|er| ConfigError::InvalidEmail(er.to_string()))?;
         Ok(addr)
+    }
+    pub fn timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(self.timeout_millis)
     }
 }
 
@@ -252,6 +256,7 @@ mod tests {
             sender_addr: "admin@majkavsek.com".to_string(),
             url: "https://api.postmarkapp.com".to_string(),
             auth_token: "dev_token".to_string().into(),
+            timeout_millis: 10000,
         };
 
         let test_app_config = AppConfig {
@@ -301,6 +306,10 @@ mod tests {
         assert_eq!(
             test_app_config.email_config.auth_token.expose_secret(),
             app_config.email_config.auth_token.expose_secret()
+        );
+        assert_eq!(
+            test_app_config.email_config.timeout_millis,
+            app_config.email_config.timeout_millis
         );
 
         Ok(())

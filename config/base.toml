@@ -14,3 +14,4 @@ sender_addr = "admin@majkavsek.com"
 url = "https://api.postmarkapp.com"
 # Only for dev
 auth_token = "dev_token"
+timeout_millis = 10000

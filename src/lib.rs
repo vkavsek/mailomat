@@ -50,6 +50,27 @@ impl App {
             listener,
         }
     }
+
+    pub async fn build_from_config(config: &AppConfig) -> Result<Self> {
+        let email_addr = config.email_config.valid_sender()?;
+
+        let email_client = EmailClient::new(
+            config.email_config.url.clone(),
+            email_addr,
+            config.email_config.auth_token.clone(),
+            config.email_config.timeout(),
+        )?;
+        let mm = ModelManager::init(config).await?;
+
+        let app_state = AppState::new(mm, email_client);
+
+        let addr = SocketAddr::from((config.net_config.host, config.net_config.app_port));
+        let listener = TcpListener::bind(addr).await?;
+        info!("Listening on: {addr}");
+
+        let app = App::new(app_state, listener);
+        Ok(app)
+    }
 }
 
 pub struct AppState {
@@ -60,28 +81,4 @@ impl AppState {
     pub fn new(mm: ModelManager, email_client: EmailClient) -> Arc<Self> {
         Arc::new(AppState { mm, email_client })
     }
-}
-
-// ###################################
-// ->   BUILD
-// ###################################
-pub async fn build(config: &AppConfig) -> Result<App> {
-    let email_addr = config.email_config.valid_sender()?;
-
-    let email_client = EmailClient::new(
-        config.email_config.url.clone(),
-        email_addr,
-        config.email_config.auth_token.clone(),
-        config.email_config.timeout(),
-    )?;
-    let mm = ModelManager::init(config).await?;
-
-    let app_state = AppState::new(mm, email_client);
-
-    let addr = SocketAddr::from((config.net_config.host, config.net_config.app_port));
-    let listener = TcpListener::bind(addr).await?;
-    info!("Listening on: {addr}");
-
-    let app = App::new(app_state, listener);
-    Ok(app)
 }

@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, sync::OnceLock};
 
 use anyhow::Result;
-use mailomat::{config::get_or_init_config, init_dbg_tracing, model::ModelManager};
+use mailomat::{config::get_or_init_config, init_dbg_tracing, model::ModelManager, App};
 use uuid::Uuid;
 
 pub struct TestApp {
@@ -40,7 +40,7 @@ pub async fn spawn_app() -> Result<TestApp> {
     // Create and migrate the test DB
     ModelManager::configure_for_test(&config).await?;
 
-    let app = mailomat::build(&config).await?;
+    let app = App::build_from_config(&config).await?;
 
     let addr = app.listener.local_addr()?;
     let mm = app.app_state.mm.clone();

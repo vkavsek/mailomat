@@ -45,7 +45,7 @@ default-features = false
 features = ["json", "rustls-tls"]
 # SQLX
 [dependencies.sqlx]
-version = "0.7"
+version = "0.8"
 default-features = false
 features = ["runtime-tokio-rustls", "macros", "postgres", "chrono", "migrate"]
 

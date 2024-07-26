@@ -60,6 +60,9 @@ pub struct EmailConfig {
     pub auth_token: SecretString,
     pub timeout_millis: u64,
 }
+// ###################################
+// ->   IMPLs
+// ###################################
 impl EmailConfig {
     pub fn valid_sender(&self) -> ConfigResult<ValidEmail> {
         let addr = ValidEmail::parse(self.sender_addr.clone())
@@ -71,9 +74,6 @@ impl EmailConfig {
     }
 }
 
-// ###################################
-// ->   IMPLs
-// ###################################
 impl AppConfig {
     pub fn init() -> AppConfigBuilder {
         AppConfigBuilder::default()
@@ -99,16 +99,9 @@ impl AppConfigBuilder {
     pub fn add_source_file(mut self, mut file: std::fs::File) -> Self {
         let mut file_content = String::new();
 
-        let file_len = file
-            .metadata()
-            .map(|data| data.len())
-            .unwrap_or_else(|e| panic!("Fatal Error: Building config: {e}"));
-
-        let read_len = file
-            .read_to_string(&mut file_content)
-            .unwrap_or_else(|e| panic!("Fatal Error: Building config: {e}"));
-
-        assert_eq!(file_len, read_len as u64);
+        if let Err(e) = file.read_to_string(&mut file_content) {
+            panic!("Fatal Error: Building config: {e}");
+        }
 
         let app_conf_builder: AppConfigBuilder = toml::from_str(&file_content)
             .unwrap_or_else(|e| panic!("Fatal Error: Building config: {e}"));
@@ -317,40 +310,53 @@ mod tests {
 
     #[test]
     fn test_db_config_from_str_ok() -> ConfigResult<()> {
+        let cases = [
+            (
+                "postgres://my_uname:pwd@localhost:6666/my_db?sslmode=disable",
+                "my_uname",
+                "pwd",
+                "localhost",
+                6666,
+                "my_db",
+                SslRequire::Disable,
+            ),
+            (
+                "postgres://my_uname:pwd@localhost:6666/my_db?sslmode=require",
+                "my_uname",
+                "pwd",
+                "localhost",
+                6666,
+                "my_db",
+                SslRequire::Require,
+            ),
+            (
+                "postgres://my_uname:pwd@localhost:6666/my_db",
+                "my_uname",
+                "pwd",
+                "localhost",
+                6666,
+                "my_db",
+                SslRequire::Prefer,
+            ),
+        ];
+
+        for (
+            db_url,
+            expected_username,
+            expected_password,
+            expected_host,
+            expected_port,
+            expected_db_name,
+            expected_ssl,
+        ) in cases
         {
-            let db_url = "postgres://my_uname:pwd@localhost:6666/my_db?sslmode=disable";
             let db_config = DbConfig::try_from(db_url)?;
-
-            assert_eq!("my_uname", db_config.username);
-            assert_eq!("pwd", db_config.password.expose_secret());
-            assert_eq!("localhost", db_config.host);
-            assert_eq!(6666, db_config.port);
-            assert_eq!("my_db", db_config.db_name);
-            assert_eq!(SslRequire::Disable, db_config.require_ssl);
-        }
-
-        {
-            let db_url = "postgres://my_uname:pwd@localhost:6666/my_db?sslmode=require";
-            let db_config = DbConfig::try_from(db_url)?;
-
-            assert_eq!("my_uname", db_config.username);
-            assert_eq!("pwd", db_config.password.expose_secret());
-            assert_eq!("localhost", db_config.host);
-            assert_eq!(6666, db_config.port);
-            assert_eq!("my_db", db_config.db_name);
-            assert_eq!(SslRequire::Require, db_config.require_ssl);
-        }
-
-        {
-            let db_url = "postgres://my_uname:pwd@localhost:6666/my_db";
-            let db_config = DbConfig::try_from(db_url)?;
-
-            assert_eq!("my_uname", db_config.username);
-            assert_eq!("pwd", db_config.password.expose_secret());
-            assert_eq!("localhost", db_config.host);
-            assert_eq!(6666, db_config.port);
-            assert_eq!("my_db", db_config.db_name);
-            assert_eq!(SslRequire::Prefer, db_config.require_ssl);
+            assert_eq!(expected_username, db_config.username);
+            assert_eq!(expected_password, db_config.password.expose_secret());
+            assert_eq!(expected_host, db_config.host);
+            assert_eq!(expected_port, db_config.port);
+            assert_eq!(expected_db_name, db_config.db_name);
+            assert_eq!(expected_ssl, db_config.require_ssl);
         }
 
         Ok(())
@@ -358,22 +364,15 @@ mod tests {
 
     #[test]
     fn test_db_config_from_str_fail() {
-        {
-            let db_url = "postgres://my_uname:pwd@localh";
-            let db_config = DbConfig::try_from(db_url);
-            assert!(db_config.is_err())
-        }
+        let invalid_urls = [
+            "postgres://my_uname:pwd@localh",
+            "postgres://my_uname:pwd@localhost:asd/my_db",
+            "postgres://my_uname:pwd@localhost:asd/my_db/fail",
+        ];
 
-        {
-            let db_url = "postgres://my_uname:pwd@localhost:asd/my_db";
+        for db_url in invalid_urls {
             let db_config = DbConfig::try_from(db_url);
-            assert!(db_config.is_err())
-        }
-
-        {
-            let db_url = "postgres://my_uname:pwd@localhost:asd/my_db/fail";
-            let db_config = DbConfig::try_from(db_url);
-            assert!(db_config.is_err())
+            assert!(db_config.is_err());
         }
     }
 }

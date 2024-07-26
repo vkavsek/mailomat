@@ -39,18 +39,3 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
-
-// fn main() {
-//     let em = mailomat::email_client::EmailContent {
-//         from: "me",
-//         to: "me",
-//         subject: "subjet",
-//         html_body: "html",
-//         text_body: "text",
-//         message_stream: "outbound",
-//     };
-//
-//     let js = serde_json::to_string_pretty(&em).unwrap();
-//
-//     println!("{}", js);
-// }

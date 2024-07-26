@@ -36,7 +36,7 @@ lazy-regex = "3"
 unicode-segmentation = "1"
 # Others
 secrecy = { version = "0.8", features = ["serde"] }
-uuid = { version = "1.8", features = ["v4"] }
+uuid = { version = "1", features = ["v4"] }
 
 # REQWEST
 [dependencies.reqwest]

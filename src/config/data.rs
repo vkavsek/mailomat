@@ -123,7 +123,8 @@ impl DbConfig {
         self.connection_options_without_db().database(&self.db_name)
     }
     pub fn connection_options_without_db(&self) -> PgConnectOptions {
-        PgConnectOptions::new()
+        // Create new PgConnectOptions struct but don't try to use the '$HOME/.pgpass' file.
+        PgConnectOptions::new_without_pgpass()
             .host(&self.host)
             .username(&self.username)
             .password(self.password.expose_secret())

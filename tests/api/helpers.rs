@@ -28,7 +28,6 @@ pub async fn spawn_app() -> Result<TestApp> {
 
     let config = {
         let mut c = get_or_init_config().to_owned();
-        c.email_config.timeout_millis = 200;
         // A new name for each test
         c.db_config.db_name = Uuid::new_v4().to_string();
         // Trying to bind port 0 will trigger an OS scan for an available port
@@ -47,6 +46,6 @@ pub async fn spawn_app() -> Result<TestApp> {
 
     tokio::spawn(mailomat::serve(app));
 
-    let res = TestApp::new(SocketAddr::from((addr.ip(), addr.port())), mm);
+    let res = TestApp::new(addr, mm);
     Ok(res)
 }

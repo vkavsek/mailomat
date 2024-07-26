@@ -2,12 +2,8 @@ use std::time::Duration;
 
 use sqlx::{postgres::PgPoolOptions, ConnectOptions, Connection, PgConnection, PgPool};
 use tracing::info;
-use uuid::Uuid;
 
-use crate::{
-    config::{get_or_init_config, DbConfig},
-    Result,
-};
+use crate::{config::AppConfig, Result};
 
 #[derive(Clone, Debug)]
 pub struct ModelManager {
@@ -15,25 +11,24 @@ pub struct ModelManager {
 }
 
 impl ModelManager {
-    pub async fn init() -> Result<Self> {
-        let db = init_db().await?;
+    pub async fn init(config: &AppConfig) -> Result<Self> {
+        let db = init_db(config).await?;
         info!("{:<12} - Initializing the DB pool", "init_db");
 
         Ok(Self { db })
     }
-    pub async fn test_init() -> Result<Self> {
-        let db = init_test_db().await?;
 
-        Ok(Self { db })
+    pub async fn configure_for_test(config: &AppConfig) -> Result<()> {
+        configure_test_db(config).await?;
+        Ok(())
     }
+
     pub fn db(&self) -> &PgPool {
         &self.db
     }
 }
 
-async fn init_db() -> Result<PgPool> {
-    let config = tokio::task::spawn_blocking(get_or_init_config).await?;
-
+async fn init_db(config: &AppConfig) -> Result<PgPool> {
     let con_opts = config
         .db_config
         .connection_options()
@@ -49,24 +44,15 @@ async fn init_db() -> Result<PgPool> {
     Ok(pool)
 }
 
-async fn init_test_db() -> Result<PgPool> {
-    // Initialize special AppConfig for Testing
-    let mut config = tokio::task::spawn_blocking(get_or_init_config)
-        .await?
-        .to_owned();
-
-    config_test_db(&mut config.db_config).await
-}
-
-async fn config_test_db(db_config: &mut DbConfig) -> Result<PgPool> {
-    db_config.db_name = Uuid::new_v4().to_string();
+async fn configure_test_db(config: &AppConfig) -> Result<()> {
+    let db_config = &config.db_config;
     let mut connection =
         PgConnection::connect_with(&db_config.connection_options_without_db()).await?;
 
     let sql = format!(r#"CREATE DATABASE "{}";"#, db_config.db_name.clone());
     sqlx::query(&sql).execute(&mut connection).await?;
 
-    // Create pool
+    // Create pool only used to migrate the DB
     let pg_pool = PgPoolOptions::new()
         .max_connections(1)
         .acquire_timeout(Duration::from_millis(500))
@@ -76,5 +62,5 @@ async fn config_test_db(db_config: &mut DbConfig) -> Result<PgPool> {
     // Migrate DB
     sqlx::migrate!("./migrations").run(&pg_pool).await?;
 
-    Ok(pg_pool)
+    Ok(())
 }

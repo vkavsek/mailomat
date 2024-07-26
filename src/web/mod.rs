@@ -13,7 +13,6 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{
     classify::ServerErrorsFailureClass,
@@ -24,7 +23,7 @@ use tracing::Span;
 
 pub use error::{Error, Result};
 
-use crate::AppState;
+use crate::{App, AppState};
 
 const REQUEST_ID_HEADER: &str = "x-request-id";
 
@@ -52,7 +51,11 @@ async fn health_check() -> StatusCode {
 /// Current implementation might return an IO error from `axum::serve`
 // Allow unused vars otherwise the compiler complains because of the cfg macros
 #[allow(unused_variables)]
-pub async fn serve(listener: TcpListener, app_state: Arc<AppState>) -> Result<()> {
+pub async fn serve(app: App) -> Result<()> {
+    let App {
+        app_state,
+        listener,
+    } = app;
     let x_request_id: HeaderName = HeaderName::from_static(REQUEST_ID_HEADER);
 
     let trace_layer = TraceLayer::new_for_http()

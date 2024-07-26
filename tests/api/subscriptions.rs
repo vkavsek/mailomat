@@ -1,78 +1,12 @@
-//! Integration tests
-
-use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    sync::OnceLock,
-    time::Duration,
-};
-
 use anyhow::Result;
-use mailomat::{
-    config::get_or_init_config, init_dbg_tracing, model::ModelManager, web::data::ValidEmail,
-    AppState, EmailClient,
-};
 use reqwest::StatusCode;
 use serde_json::json;
-use tokio::net::TcpListener;
-use tracing::info;
 
-/// Trying to bind *port 0* will trigger an OS scan for an available port
-/// which will then be bound to the application.
-const TEST_SOCK_ADDR: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-
-fn _init_test_subscriber() {
-    static SUBSCRIBER: OnceLock<()> = OnceLock::new();
-    SUBSCRIBER.get_or_init(|| {
-        init_dbg_tracing();
-    });
-}
-/// A helper function that tries to spawn a separate thread to serve our app
-/// returning the *socket address* on which it is listening.
-async fn spawn_app() -> Result<(SocketAddr, ModelManager)> {
-    // _init_test_subscriber();
-
-    let addr = TEST_SOCK_ADDR;
-    let config = get_or_init_config();
-    let email_addr = ValidEmail::parse(config.email_config.sender_addr.as_str())
-        .map_err(Into::<mailomat::web::Error>::into)?;
-
-    let email_client = EmailClient::new(
-        config.email_config.url.clone(),
-        email_addr,
-        config.email_config.auth_token.clone(),
-        Duration::from_millis(200),
-    )?;
-    let mm = ModelManager::test_init().await?;
-    let app_state = AppState::new(mm, email_client);
-
-    let listener = TcpListener::bind(&addr).await?;
-    let port = listener.local_addr()?.port();
-    info!("Listening on {addr}");
-
-    tokio::spawn(mailomat::serve(listener, app_state.clone()));
-
-    let res = (SocketAddr::from((addr.ip(), port)), app_state.mm.clone());
-    Ok(res)
-}
-
-#[tokio::test]
-async fn test_healthcheck_ok() -> Result<()> {
-    let (addr, _mm) = spawn_app().await?;
-
-    let client = reqwest::Client::new();
-    let res = client
-        .get(format!("http://{addr}/health-check"))
-        .send()
-        .await?;
-
-    assert!(res.status() == StatusCode::OK, "Healthcheck FAILED!");
-
-    Ok(())
-}
+use crate::helpers::{spawn_app, TestApp};
 
 #[tokio::test]
 async fn test_api_subscribe_ok() -> Result<()> {
-    let (addr, mm) = spawn_app().await?;
+    let TestApp { addr, mm } = spawn_app().await?;
 
     let client = reqwest::Client::new();
 
@@ -106,7 +40,7 @@ async fn test_api_subscribe_ok() -> Result<()> {
 
 #[tokio::test]
 async fn test_api_subscribe_unprocessable_entity() -> Result<()> {
-    let (addr, _mm) = spawn_app().await?;
+    let TestApp { addr, mm: _ } = spawn_app().await?;
     let addr = format!("http://{addr}/api/subscribe");
 
     let tests = [
@@ -144,7 +78,7 @@ async fn test_api_subscribe_unprocessable_entity() -> Result<()> {
 
 #[tokio::test]
 async fn test_api_subscribe_returns_a_400_when_fields_are_present_but_invalid() -> Result<()> {
-    let (addr, _mm) = spawn_app().await?;
+    let TestApp { addr, mm: _ } = spawn_app().await?;
     let addr = format!("http://{addr}/api/subscribe");
 
     let test_cases = vec![

@@ -30,20 +30,20 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # Convenience macros
 strum_macros = "0.26"
 derive_more = "0.99"
-
-# Others
+# Validation
 validator = { version = "0.18", features = ["derive"] }
-secrecy = { version = "0.8", features = ["serde"] }
-uuid = { version = "1.8", features = ["v4"] }
 lazy-regex = "3"
 unicode-segmentation = "1"
+# Others
+secrecy = { version = "0.8", features = ["serde"] }
+uuid = { version = "1.8", features = ["v4"] }
 
 # REQWEST
 [dependencies.reqwest]
 version = "0.12"
 default-features = false
 features = ["json", "rustls-tls"]
-# SQL 
+# SQLX
 [dependencies.sqlx]
 version = "0.7"
 default-features = false

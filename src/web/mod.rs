@@ -45,15 +45,11 @@ async fn health_check() -> StatusCode {
 // ###################################
 // ->   SERVE
 // ###################################
-/// SERVE
 /// The core async function returning a future that will serve this application.
 ///
-/// Accepts a "TcpListener" and the state(ModelManager) and creates an App Router.
-/// It sets up a TraceLayer that provides console logging.
-/// It returns a `Result` containing a `Serve` future. Needs to be awaited like so:
-/// ```ignore
-/// mailomat::serve(listener).await;
-/// ```
+/// Accepts a `TcpListener` and the `AppState` and sets up a TraceLayer that provides console logging.
+///
+/// Current implementation might return an IO error from `axum::serve`
 // Allow unused vars otherwise the compiler complains because of the cfg macros
 #[allow(unused_variables)]
 pub async fn serve(listener: TcpListener, app_state: Arc<AppState>) -> Result<()> {

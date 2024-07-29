@@ -15,18 +15,18 @@ pub struct DeserSubscriber {
 
 /// Validated Subscriber
 /// A Subscriber with all the fields validated.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ValidSubscriber {
     pub email: ValidEmail,
     pub name: ValidName,
 }
 
 /// Validated Subscriber Email
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ValidEmail(String);
 
 /// Validated Subscriber Name
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ValidName(String);
 
 // ###################################

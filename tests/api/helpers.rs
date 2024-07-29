@@ -43,7 +43,7 @@ fn _init_test_subscriber() {
 
 /// A helper function that tries to spawn a separate thread to serve our app
 /// returning the *socket address* on which it is listening.
-pub async fn spawn_app() -> Result<TestApp> {
+pub async fn spawn_test_app() -> Result<TestApp> {
     // _init_test_subscriber();
 
     // A mock server to stand-in for Postmark API

@@ -20,6 +20,8 @@ pub enum Error {
 
     #[from]
     DataParsing(super::data::DataParsingError),
+    #[from]
+    EmailClient(crate::email_client::Error),
 
     #[from]
     TokioJoin(#[serde_as(as = "DisplayFromStr")] tokio::task::JoinError),

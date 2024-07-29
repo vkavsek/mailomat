@@ -1,17 +1,29 @@
 use anyhow::Result;
 use reqwest::StatusCode;
 use serde_json::json;
+use wiremock::{
+    matchers::{method, path},
+    Mock, ResponseTemplate,
+};
 
-use crate::helpers::spawn_app;
+use crate::helpers::spawn_test_app;
 
 #[tokio::test]
 async fn api_subscribe_ok() -> Result<()> {
-    let app = spawn_app().await?;
+    let app = spawn_test_app().await?;
 
     let json_request = json!({
         "name": "John Doe",
         "email": "john.doe@example.com"
     });
+
+    // Setup the mock server
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
 
     let res = app.post_subscriptions(&json_request).await?;
 
@@ -34,7 +46,7 @@ async fn api_subscribe_ok() -> Result<()> {
 
 #[tokio::test]
 async fn api_subscribe_unprocessable_entity() -> Result<()> {
-    let app = spawn_app().await?;
+    let app = spawn_test_app().await?;
 
     let tests = [
         (
@@ -69,7 +81,7 @@ async fn api_subscribe_unprocessable_entity() -> Result<()> {
 
 #[tokio::test]
 async fn api_subscribe_returns_a_400_when_fields_are_present_but_invalid() -> Result<()> {
-    let app = spawn_app().await?;
+    let app = spawn_test_app().await?;
 
     let cases = vec![
         (
@@ -110,5 +122,22 @@ async fn api_subscribe_returns_a_400_when_fields_are_present_but_invalid() -> Re
 
 #[tokio::test]
 async fn subscribe_sends_a_confirmation_email_for_valid_data() -> Result<()> {
+    let app = spawn_test_app().await?;
+    let body = json!({
+        "name": "Ursula",
+        "email": "le_guin@gmail.com",
+    });
+
+    // Setup the mock server
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    let res = app.post_subscriptions(&body).await?;
+    assert_eq!(res.status(), StatusCode::OK);
+
     Ok(())
 }

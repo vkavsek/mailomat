@@ -2,15 +2,32 @@ use std::{net::SocketAddr, sync::OnceLock};
 
 use anyhow::Result;
 use mailomat::{config::get_or_init_config, init_dbg_tracing, model::ModelManager, App};
+use reqwest::Client;
 use uuid::Uuid;
 
 pub struct TestApp {
+    http_client: Client,
     pub addr: SocketAddr,
     pub mm: ModelManager,
 }
 impl TestApp {
     pub fn new(addr: SocketAddr, mm: ModelManager) -> Self {
-        TestApp { addr, mm }
+        TestApp {
+            addr,
+            mm,
+            http_client: Client::new(),
+        }
+    }
+
+    pub async fn post_subscriptions(&self, body: &serde_json::Value) -> Result<reqwest::Response> {
+        let res = self
+            .http_client
+            .post(format!("http://{}/api/subscribe", self.addr))
+            .json(body)
+            .send()
+            .await?;
+
+        Ok(res)
     }
 }
 

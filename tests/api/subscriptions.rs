@@ -2,24 +2,18 @@ use anyhow::Result;
 use reqwest::StatusCode;
 use serde_json::json;
 
-use crate::helpers::{spawn_app, TestApp};
+use crate::helpers::spawn_app;
 
 #[tokio::test]
 async fn test_api_subscribe_ok() -> Result<()> {
-    let TestApp { addr, mm } = spawn_app().await?;
-
-    let client = reqwest::Client::new();
+    let app = spawn_app().await?;
 
     let json_request = json!({
         "name": "John Doe",
         "email": "john.doe@example.com"
     });
 
-    let res = client
-        .post(format!("http://{addr}/api/subscribe"))
-        .json(&json_request)
-        .send()
-        .await?;
+    let res = app.post_subscriptions(&json_request).await?;
 
     assert_eq!(
         res.status(),
@@ -29,7 +23,7 @@ async fn test_api_subscribe_ok() -> Result<()> {
     );
 
     let (email, name): (String, String) = sqlx::query_as("SELECT email, name FROM subscriptions")
-        .fetch_one(mm.db())
+        .fetch_one(app.mm.db())
         .await?;
 
     assert_eq!(email, "john.doe@example.com");
@@ -40,8 +34,7 @@ async fn test_api_subscribe_ok() -> Result<()> {
 
 #[tokio::test]
 async fn test_api_subscribe_unprocessable_entity() -> Result<()> {
-    let TestApp { addr, mm: _ } = spawn_app().await?;
-    let addr = format!("http://{addr}/api/subscribe");
+    let app = spawn_app().await?;
 
     let tests = [
         (
@@ -60,10 +53,8 @@ async fn test_api_subscribe_unprocessable_entity() -> Result<()> {
         (json!({}), "Empty json"),
     ];
 
-    let client = reqwest::Client::new();
-
     for (json_request, params) in tests {
-        let res = client.post(&addr).json(&json_request).send().await?;
+        let res = app.post_subscriptions(&json_request).await?;
         assert_eq!(
             res.status(),
             StatusCode::UNPROCESSABLE_ENTITY,
@@ -78,8 +69,7 @@ async fn test_api_subscribe_unprocessable_entity() -> Result<()> {
 
 #[tokio::test]
 async fn test_api_subscribe_returns_a_400_when_fields_are_present_but_invalid() -> Result<()> {
-    let TestApp { addr, mm: _ } = spawn_app().await?;
-    let addr = format!("http://{addr}/api/subscribe");
+    let app = spawn_app().await?;
 
     let test_cases = vec![
         (
@@ -105,14 +95,8 @@ async fn test_api_subscribe_returns_a_400_when_fields_are_present_but_invalid() 
         ),
     ];
 
-    let client = reqwest::Client::new();
     for (body, description) in test_cases {
-        let response = client
-            .post(&addr)
-            .json(&body)
-            .send()
-            .await
-            .expect("Failed to execute request.");
+        let response = app.post_subscriptions(&body).await?;
         assert_eq!(
             400,
             response.status().as_u16(),

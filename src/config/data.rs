@@ -6,7 +6,10 @@ use std::{
 use lazy_regex::regex_captures;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
-use sqlx::postgres::{PgConnectOptions, PgSslMode};
+use sqlx::{
+    postgres::{PgConnectOptions, PgSslMode},
+    ConnectOptions,
+};
 use strum_macros::AsRefStr;
 use toml::Value;
 
@@ -120,7 +123,9 @@ impl AppConfigBuilder {
 
 impl DbConfig {
     pub fn connection_options(&self) -> PgConnectOptions {
-        self.connection_options_without_db().database(&self.db_name)
+        self.connection_options_without_db()
+            .database(&self.db_name)
+            .log_statements(tracing::log::LevelFilter::Debug)
     }
     pub fn connection_options_without_db(&self) -> PgConnectOptions {
         // Create new PgConnectOptions struct but don't try to use the '$HOME/.pgpass' file.

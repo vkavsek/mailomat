@@ -10,7 +10,7 @@ Uses Axum instead of Actix with hosting on Fly.io.
 - Docker
 - sqlx
 - psql
-- flyctl (for Deployment only)
+- flyctl (for Deployment and Monitoring only)
 
 ### Development: 
 - It needs a running Postgres database for the tests to work. 
@@ -46,5 +46,5 @@ fly proxy 15432:5432 -a mailomat-pg
 ```
 2. Then you can use `DATABASE_URL` env variable to migrate, don't forget to replace the password:
 ```fish
-env DATABASE_URL={postgres://postgres:<password>@localhost:15432} sqlx migrate run
+env DATABASE_URL="postgres://postgres:<password>@localhost:15432/mailomat" sqlx migrate run
 ```

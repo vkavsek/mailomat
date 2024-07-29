@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use sqlx::{postgres::PgPoolOptions, ConnectOptions, Connection, PgConnection, PgPool};
+use sqlx::{postgres::PgPoolOptions, Connection, PgConnection, PgPool};
 use tracing::info;
 
 use crate::{config::AppConfig, Result};
@@ -29,10 +29,7 @@ impl ModelManager {
 }
 
 async fn init_db(config: &AppConfig) -> Result<PgPool> {
-    let con_opts = config
-        .db_config
-        .connection_options()
-        .log_statements(tracing::log::LevelFilter::Debug);
+    let con_opts = config.db_config.connection_options();
 
     let pool = PgPoolOptions::new()
         .max_connections(5)

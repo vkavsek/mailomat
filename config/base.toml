@@ -6,7 +6,7 @@ host = "127.0.0.1"
 port = 5432
 username = "postgres"
 password = "password"
-db_name = "newsletter"
+db_name = "mailomat"
 
 [email_config]
 # Address currently used for sending emails.

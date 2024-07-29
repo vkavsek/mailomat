@@ -6,7 +6,7 @@ use reqwest::Client;
 use uuid::Uuid;
 
 pub struct TestApp {
-    http_client: Client,
+    pub http_client: Client,
     pub addr: SocketAddr,
     pub mm: ModelManager,
 }

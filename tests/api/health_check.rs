@@ -7,10 +7,11 @@ use crate::helpers::{spawn_app, TestApp};
 
 #[tokio::test]
 async fn test_healthcheck_ok() -> Result<()> {
-    let TestApp { addr, mm: _ } = spawn_app().await?;
+    let TestApp {
+        addr, http_client, ..
+    } = spawn_app().await?;
 
-    let client = reqwest::Client::new();
-    let res = client
+    let res = http_client
         .get(format!("http://{addr}/health-check"))
         .send()
         .await?;

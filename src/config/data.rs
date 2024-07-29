@@ -246,7 +246,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_app_config_add_source_and_build_ok() -> ConfigResult<()> {
+    fn app_config_add_source_and_build_ok() -> ConfigResult<()> {
         let base_path = std::env::current_dir().expect("Failed to determine the current DIR.");
         let config_dir = base_path.join("config");
         let base_file = File::open(config_dir.join("base.toml"))?;
@@ -258,7 +258,7 @@ mod tests {
             timeout_millis: 10000,
         };
 
-        let test_app_config = AppConfig {
+        let app_config = AppConfig {
             net_config: NetConfig {
                 host: [127, 0, 0, 1],
                 app_port: 8080,
@@ -274,7 +274,7 @@ mod tests {
             email_config,
         };
 
-        let app_config = AppConfig::init()
+        let test_app_config = AppConfig::init()
             .add_source_file(base_file)
             .add_source_file(local_file)
             .build()?;
@@ -315,7 +315,7 @@ mod tests {
     }
 
     #[test]
-    fn test_db_config_from_str_ok() -> ConfigResult<()> {
+    fn db_config_from_str_ok() -> ConfigResult<()> {
         let cases = [
             (
                 "postgres://my_uname:pwd@localhost:6666/my_db?sslmode=disable",
@@ -369,7 +369,7 @@ mod tests {
     }
 
     #[test]
-    fn test_db_config_from_str_fail() {
+    fn db_config_from_str_fail() {
         let invalid_urls = [
             "postgres://my_uname:pwd@localh",
             "postgres://my_uname:pwd@localhost:asd/my_db",

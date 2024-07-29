@@ -6,7 +6,7 @@ use reqwest::StatusCode;
 use crate::helpers::{spawn_app, TestApp};
 
 #[tokio::test]
-async fn test_healthcheck_ok() -> Result<()> {
+async fn healthcheck_ok() -> Result<()> {
     let TestApp {
         addr, http_client, ..
     } = spawn_app().await?;

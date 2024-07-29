@@ -5,7 +5,7 @@ use serde_json::json;
 use crate::helpers::spawn_app;
 
 #[tokio::test]
-async fn test_api_subscribe_ok() -> Result<()> {
+async fn api_subscribe_ok() -> Result<()> {
     let app = spawn_app().await?;
 
     let json_request = json!({
@@ -33,7 +33,7 @@ async fn test_api_subscribe_ok() -> Result<()> {
 }
 
 #[tokio::test]
-async fn test_api_subscribe_unprocessable_entity() -> Result<()> {
+async fn api_subscribe_unprocessable_entity() -> Result<()> {
     let app = spawn_app().await?;
 
     let tests = [
@@ -68,10 +68,10 @@ async fn test_api_subscribe_unprocessable_entity() -> Result<()> {
 }
 
 #[tokio::test]
-async fn test_api_subscribe_returns_a_400_when_fields_are_present_but_invalid() -> Result<()> {
+async fn api_subscribe_returns_a_400_when_fields_are_present_but_invalid() -> Result<()> {
     let app = spawn_app().await?;
 
-    let test_cases = vec![
+    let cases = vec![
         (
             json!({
                 "name": "",
@@ -95,7 +95,7 @@ async fn test_api_subscribe_returns_a_400_when_fields_are_present_but_invalid() 
         ),
     ];
 
-    for (body, description) in test_cases {
+    for (body, description) in cases {
         let response = app.post_subscriptions(&body).await?;
         assert_eq!(
             400,
@@ -105,5 +105,10 @@ async fn test_api_subscribe_returns_a_400_when_fields_are_present_but_invalid() 
         );
     }
 
+    Ok(())
+}
+
+#[tokio::test]
+async fn subscribe_sends_a_confirmation_email_for_valid_data() -> Result<()> {
     Ok(())
 }

@@ -4,18 +4,21 @@ use anyhow::Result;
 use mailomat::{config::get_or_init_config, init_dbg_tracing, model::ModelManager, App};
 use reqwest::Client;
 use uuid::Uuid;
+use wiremock::MockServer;
 
 pub struct TestApp {
     pub http_client: Client,
     pub addr: SocketAddr,
     pub mm: ModelManager,
+    pub email_server: MockServer,
 }
 impl TestApp {
-    pub fn new(addr: SocketAddr, mm: ModelManager) -> Self {
+    pub fn new(addr: SocketAddr, mm: ModelManager, email_server: MockServer) -> Self {
         TestApp {
             addr,
             mm,
             http_client: Client::new(),
+            email_server,
         }
     }
 
@@ -43,6 +46,9 @@ fn _init_test_subscriber() {
 pub async fn spawn_app() -> Result<TestApp> {
     // _init_test_subscriber();
 
+    // A mock server to stand-in for Postmark API
+    let email_server = MockServer::start().await;
+
     let config = {
         let mut c = get_or_init_config().to_owned();
         // A new name for each test
@@ -50,6 +56,7 @@ pub async fn spawn_app() -> Result<TestApp> {
         // Trying to bind port 0 will trigger an OS scan for an available port
         // which will then be bound to the application.
         c.net_config.app_port = 0;
+        c.email_config.url = email_server.uri();
         c
     };
 
@@ -63,6 +70,6 @@ pub async fn spawn_app() -> Result<TestApp> {
 
     tokio::spawn(mailomat::serve(app));
 
-    let res = TestApp::new(addr, mm);
+    let res = TestApp::new(addr, mm, email_server);
     Ok(res)
 }

@@ -172,7 +172,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_send_email_send_request_success() -> Result<()> {
+    async fn send_email_send_request_success() -> Result<()> {
         let mock_server = MockServer::start().await;
         let email_client = email_client(mock_server.uri())?;
 
@@ -200,7 +200,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_send_email_send_request_fail_if_500() -> Result<()> {
+    async fn send_email_send_request_fail_if_500() -> Result<()> {
         let mock_server = MockServer::start().await;
         let email_client = email_client(mock_server.uri())?;
 
@@ -226,7 +226,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_send_email_timeout() -> Result<()> {
+    async fn send_email_timeout() -> Result<()> {
         let mock_server = MockServer::start().await;
         let email_client = email_client(mock_server.uri())?;
 

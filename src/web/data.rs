@@ -127,55 +127,55 @@ mod test {
     use claims::{assert_err, assert_ok};
 
     #[test]
-    fn test_name_a_256_grapheme_long_name_is_valid() {
+    fn name_a_256_grapheme_long_name_is_valid() {
         let name = "ё".repeat(256);
         assert_ok!(ValidName::parse(name));
     }
     #[test]
-    fn test_name_longer_than_256_rejected() {
+    fn name_longer_than_256_rejected() {
         let name = "a".repeat(257);
         assert_err!(ValidName::parse(name));
     }
     #[test]
-    fn test_name_whitespace_only_rejected() {
+    fn name_whitespace_only_rejected() {
         let name = " ".to_string();
         assert_err!(ValidName::parse(name));
     }
     #[test]
-    fn test_name_empty_string_rejected() {
+    fn name_empty_string_rejected() {
         let name = "".to_string();
         assert_err!(ValidName::parse(name));
     }
     #[test]
-    fn test_name_containing_invalid_character_rejected() {
+    fn name_containing_invalid_character_rejected() {
         for name in &['/', '(', ')', '"', '<', '>', '\\', '{', '}'] {
             let name = name.to_string();
             assert_err!(ValidName::parse(name));
         }
     }
     #[test]
-    fn test_name_a_valid_is_parsed_successfully() {
+    fn name_a_valid_is_parsed_successfully() {
         let name = "Ursula Le Guin".to_string();
         assert_ok!(ValidName::parse(name));
     }
 
     #[test]
-    fn test_email_empty_string_is_rejected() {
+    fn email_empty_string_is_rejected() {
         let email = "".to_string();
         assert_err!(ValidEmail::parse(email));
     }
     #[test]
-    fn test_email_longer_than_256_graphemes_is_rejected() {
+    fn email_longer_than_256_graphemes_is_rejected() {
         let name = "a".repeat(257);
         assert_err!(ValidName::parse(name));
     }
     #[test]
-    fn test_email_missing_at_symbol_is_rejected() {
+    fn email_missing_at_symbol_is_rejected() {
         let email = "ursuladomain.com".to_string();
         assert_err!(ValidEmail::parse(email));
     }
     #[test]
-    fn test_email_missing_subject_is_rejected() {
+    fn email_missing_subject_is_rejected() {
         let email = "@domain.com".to_string();
         assert_err!(ValidEmail::parse(email));
     }
@@ -199,7 +199,7 @@ mod test {
     /// A quickcheck test that generates random valid emails and tests them.
     /// Random generation is based on `Arbitrary` implementation above
     #[quickcheck_macros::quickcheck]
-    fn test_email_valid_emails_are_parsed_successfully(valid_email: ValidEmailFixture) -> bool {
+    fn email_valid_emails_are_parsed_successfully(valid_email: ValidEmailFixture) -> bool {
         dbg!(&valid_email.0);
         ValidEmail::parse(valid_email.0).is_ok()
     }

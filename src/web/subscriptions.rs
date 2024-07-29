@@ -26,18 +26,18 @@ pub async fn api_subscribe(
 }
 
 async fn insert_subscriber(mm: ModelManager, subscriber: ValidSubscriber) -> Result<StatusCode> {
-    let db = mm.db();
+    let db_pool = mm.db();
 
     sqlx::query(
         r#"
-        INSERT INTO subscriptions (email, name, subscribed_at)
-        VALUES ($1, $2, $3)
+        INSERT INTO subscriptions (email, name, subscribed_at, status)
+        VALUES ($1, $2, $3, 'confirmed')
     "#,
     )
     .bind(subscriber.email.as_ref())
     .bind(subscriber.name.as_ref())
     .bind(Utc::now())
-    .execute(db)
+    .execute(db_pool)
     .await?;
 
     info!("New subscriber succesfully added to the list.");

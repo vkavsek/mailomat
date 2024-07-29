@@ -268,7 +268,7 @@ mod tests {
                 password: SecretString::from_str("password").unwrap(),
                 port: 5432,
                 host: "127.0.0.1".to_string(),
-                db_name: "newsletter".to_string(),
+                db_name: "mailomat".to_string(),
                 require_ssl: SslRequire::Disable,
             },
             email_config,

@@ -8,7 +8,7 @@ use super::{
     data::{DeserSubscriber, ValidSubscriber},
     Result,
 };
-use crate::{model::ModelManager, AppState};
+use crate::{email_client::MessageStream, model::ModelManager, AppState, EmailClient};
 
 #[tracing::instrument(
     name = "Saving new subscriber to the database",
@@ -27,16 +27,7 @@ pub async fn api_subscribe(
 
     insert_subscriber(app_state.mm.clone(), subscriber.clone()).await?;
 
-    app_state
-        .email_client
-        .send_email(
-            &subscriber.email,
-            "Welcome!",
-            "Welcome to our newsletter!",
-            "Welcome to our newsletter!",
-            crate::email_client::MessageStream::Outbound,
-        )
-        .await?;
+    send_confirmation_email(&app_state.email_client, &subscriber).await?;
 
     Ok(StatusCode::OK)
 }
@@ -47,7 +38,7 @@ async fn insert_subscriber(mm: ModelManager, subscriber: ValidSubscriber) -> Res
     sqlx::query(
         r#"
         INSERT INTO subscriptions (email, name, subscribed_at, status)
-        VALUES ($1, $2, $3, 'confirmed')
+        VALUES ($1, $2, $3, 'pending_confirmation')
     "#,
     )
     .bind(subscriber.email.as_ref())
@@ -57,6 +48,32 @@ async fn insert_subscriber(mm: ModelManager, subscriber: ValidSubscriber) -> Res
     .await?;
 
     info!("New subscriber succesfully added to the list.");
+
+    Ok(())
+}
+
+async fn send_confirmation_email(
+    email_client: &EmailClient,
+    subscriber: &ValidSubscriber,
+) -> Result<()> {
+    let confirmation_link = "https://example.com";
+
+    email_client
+        .send_email(
+            &subscriber.email,
+            "Welcome!",
+            &format!(
+                "Welcome to our newsletter! <br/>\
+                Click <a href={}>here</a> to confirm your subscription.",
+                confirmation_link
+            ),
+            &format!(
+                "Welcome to our newsletter!\n Visit {} to confirm your subscription",
+                confirmation_link
+            ),
+            MessageStream::Outbound,
+        )
+        .await?;
 
     Ok(())
 }

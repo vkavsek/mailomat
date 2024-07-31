@@ -9,7 +9,7 @@ use wiremock::{
 use crate::helpers::spawn_test_app;
 
 #[tokio::test]
-async fn api_subscribe_ok() -> Result<()> {
+async fn api_subscribe_returns_200_for_valid_json() -> Result<()> {
     let app = spawn_test_app().await?;
 
     let json_request = json!({
@@ -21,7 +21,6 @@ async fn api_subscribe_ok() -> Result<()> {
     Mock::given(path("/email"))
         .and(method("POST"))
         .respond_with(ResponseTemplate::new(200))
-        .expect(1)
         .mount(&app.email_server)
         .await;
 
@@ -34,12 +33,35 @@ async fn api_subscribe_ok() -> Result<()> {
         res.status()
     );
 
-    let (email, name): (String, String) = sqlx::query_as("SELECT email, name FROM subscriptions")
-        .fetch_one(app.mm.db())
-        .await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn api_subscribe_persists_the_new_subscriber() -> Result<()> {
+    let app = spawn_test_app().await?;
+
+    let json_request = json!({
+        "name": "John Doe",
+        "email": "john.doe@example.com"
+    });
+
+    // Setup the mock server
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&app.email_server)
+        .await;
+
+    app.post_subscriptions(&json_request).await?;
+
+    let (email, name, status): (String, String, String) =
+        sqlx::query_as("SELECT email, name, status FROM subscriptions")
+            .fetch_one(app.mm.db())
+            .await?;
 
     assert_eq!(email, "john.doe@example.com");
     assert_eq!(name, "John Doe");
+    assert_eq!(status, "pending_confirmation");
 
     Ok(())
 }
@@ -121,7 +143,7 @@ async fn api_subscribe_returns_a_400_when_fields_are_present_but_invalid() -> Re
 }
 
 #[tokio::test]
-async fn subscribe_sends_a_confirmation_email_for_valid_data() -> Result<()> {
+async fn api_subscribe_sends_a_confirmation_email_for_valid_data() -> Result<()> {
     let app = spawn_test_app().await?;
     let body = json!({
         "name": "Ursula",
@@ -138,6 +160,44 @@ async fn subscribe_sends_a_confirmation_email_for_valid_data() -> Result<()> {
 
     let res = app.post_subscriptions(&body).await?;
     assert_eq!(res.status(), StatusCode::OK);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn api_subscribe_sends_a_confirmation_email_with_a_link() -> Result<()> {
+    let app = spawn_test_app().await?;
+    let body = json!({
+        "name": "Ursula",
+        "email": "le_guin@gmail.com",
+    });
+
+    // Setup the mock server
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&app.email_server)
+        .await;
+
+    app.post_subscriptions(&body).await?;
+
+    // Get the first intercepted request
+    let email_req = &app.email_server.received_requests().await.unwrap()[0];
+    let body: serde_json::Value = serde_json::from_slice(&email_req.body)?;
+
+    let get_link = |s: &str| {
+        let links: Vec<_> = linkify::LinkFinder::new()
+            .links(s)
+            .filter(|l| l.kind() == &linkify::LinkKind::Url)
+            .collect();
+        assert_eq!(links.len(), 1);
+        links[0].as_str().to_owned()
+    };
+
+    let html_link = get_link(body["HtmlBody"].as_str().unwrap());
+    let text_link = get_link(body["TextBody"].as_str().unwrap());
+
+    assert_eq!(html_link, text_link);
 
     Ok(())
 }

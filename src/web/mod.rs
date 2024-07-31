@@ -4,6 +4,7 @@ mod log;
 mod midware;
 mod serve;
 mod subscriptions;
+mod subscriptions_confirm;
 
 use std::sync::Arc;
 
@@ -26,6 +27,10 @@ const REQUEST_ID_HEADER: &str = "x-request-id";
 pub fn routes(app_state: Arc<AppState>) -> Router {
     Router::new()
         .route("/api/subscribe", post(subscriptions::api_subscribe))
+        .route(
+            "/subscriptions/confirm",
+            get(subscriptions_confirm::confirm),
+        )
         .with_state(app_state.clone())
         .route("/health-check", get(health_check))
 }

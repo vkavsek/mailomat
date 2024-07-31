@@ -30,9 +30,11 @@ impl ModelManager {
 
 async fn init_db(config: &AppConfig) -> Result<PgPool> {
     let con_opts = config.db_config.connection_options();
+    // NOTE: Tests sometimes fail if there is more than 1 max connection. This fixes it.
+    let max_cons = if cfg!(test) { 1 } else { 5 };
 
     let db_pool = PgPoolOptions::new()
-        .max_connections(5)
+        .max_connections(max_cons)
         .acquire_timeout(Duration::from_millis(500))
         .connect_with(con_opts)
         .await

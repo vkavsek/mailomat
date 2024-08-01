@@ -30,7 +30,6 @@ pub async fn api_subscribe(
 
     let subscriber_id = insert_subscriber(app_state.mm.clone(), subscriber.clone()).await?;
     insert_subscription_token(app_state.mm.clone(), &subscription_token, subscriber_id).await?;
-    info!("SUCCESS");
 
     send_confirmation_email(
         &app_state.email_client,

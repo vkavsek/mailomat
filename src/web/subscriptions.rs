@@ -1,6 +1,7 @@
 use axum::{extract::State, http::StatusCode, Json};
 use chrono::Utc;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use sqlx::{Executor, Postgres, Transaction};
 use tracing::info;
 use uuid::Uuid;
 
@@ -8,7 +9,7 @@ use super::{
     data::{DeserSubscriber, ValidSubscriber},
     Result,
 };
-use crate::{email_client::MessageStream, model::ModelManager, AppState, EmailClient};
+use crate::{email_client::MessageStream, AppState, EmailClient};
 
 #[tracing::instrument(
     name = "Saving new subscriber to the database",
@@ -28,8 +29,12 @@ pub async fn api_subscribe(
             .await?;
     let subscriber: ValidSubscriber = subscriber?;
 
-    let subscriber_id = insert_subscriber(app_state.mm.clone(), subscriber.clone()).await?;
-    insert_subscription_token(app_state.mm.clone(), &subscription_token, subscriber_id).await?;
+    // BEGIN sql transaction
+    let mut transaction = app_state.mm.db().begin().await?;
+    let subscriber_id = insert_subscriber(&mut transaction, subscriber.clone()).await?;
+    insert_subscription_token(&mut transaction, &subscription_token, subscriber_id).await?;
+    transaction.commit().await?;
+    // END sql transaction
 
     send_confirmation_email(
         &app_state.email_client,
@@ -42,11 +47,13 @@ pub async fn api_subscribe(
     Ok(StatusCode::OK)
 }
 
-async fn insert_subscriber(mm: ModelManager, subscriber: ValidSubscriber) -> Result<Uuid> {
-    let db_pool = mm.db();
+async fn insert_subscriber(
+    transaction: &mut Transaction<'_, Postgres>,
+    subscriber: ValidSubscriber,
+) -> Result<Uuid> {
     let subscriber_id = Uuid::new_v4();
 
-    sqlx::query(
+    let query = sqlx::query(
         r#"
         INSERT INTO subscriptions (id, email, name, subscribed_at, status)
         VALUES ($1, $2, $3, $4, 'pending_confirmation')
@@ -55,28 +62,26 @@ async fn insert_subscriber(mm: ModelManager, subscriber: ValidSubscriber) -> Res
     .bind(subscriber_id)
     .bind(subscriber.email.as_ref())
     .bind(subscriber.name.as_ref())
-    .bind(Utc::now())
-    .execute(db_pool)
-    .await?;
+    .bind(Utc::now());
+
+    transaction.execute(query).await?;
 
     Ok(subscriber_id)
 }
 
 async fn insert_subscription_token(
-    mm: ModelManager,
+    transaction: &mut Transaction<'_, Postgres>,
     subscription_token: &str,
     subscriber_id: Uuid,
 ) -> Result<()> {
-    let db_pool = mm.db();
-
-    sqlx::query(
+    let query = sqlx::query(
         r#"INSERT INTO subscription_tokens(subscription_token, subscriber_id)
     VALUES ($1, $2)"#,
     )
     .bind(subscription_token)
-    .bind(subscriber_id)
-    .execute(db_pool)
-    .await?;
+    .bind(subscriber_id);
+
+    transaction.execute(query).await?;
 
     Ok(())
 }

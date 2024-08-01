@@ -1,6 +1,7 @@
 use anyhow::Result;
 use reqwest::StatusCode;
 use serde_json::json;
+use serial_test::serial;
 use wiremock::{
     matchers::{method, path},
     Mock, ResponseTemplate,
@@ -8,6 +9,7 @@ use wiremock::{
 
 use crate::helpers::{ConfirmationLinks, TestApp};
 
+#[serial]
 #[tokio::test]
 async fn subscriptions_confirm_without_token_rejected_with_400() -> Result<()> {
     let app = TestApp::spawn().await?;
@@ -23,6 +25,7 @@ async fn subscriptions_confirm_without_token_rejected_with_400() -> Result<()> {
     Ok(())
 }
 
+#[serial]
 #[tokio::test]
 async fn subscriptions_confirm_link_returned_by_subscribe_returns_200() -> Result<()> {
     let app = TestApp::spawn().await?;
@@ -47,6 +50,7 @@ async fn subscriptions_confirm_link_returned_by_subscribe_returns_200() -> Resul
     Ok(())
 }
 
+#[serial]
 #[tokio::test]
 async fn subscriptions_confirm_successful_confirmation_of_subscription() -> Result<()> {
     let app = TestApp::spawn().await?;

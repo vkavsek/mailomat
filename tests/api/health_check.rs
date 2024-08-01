@@ -2,9 +2,11 @@
 
 use anyhow::Result;
 use reqwest::StatusCode;
+use serial_test::serial;
 
 use crate::helpers::TestApp;
 
+#[serial]
 #[tokio::test]
 async fn healthcheck_ok() -> Result<()> {
     let TestApp {

@@ -2,11 +2,18 @@ use std::{net::SocketAddr, sync::OnceLock};
 
 use anyhow::{Context, Result};
 use linkify::LinkKind;
-use mailomat::{config::get_or_init_config, init_dbg_tracing, model::ModelManager, App};
+use mailomat::{config::get_or_init_config, init_tracing, model::ModelManager, App};
 use reqwest::Client;
 use serde_json::Value;
 use uuid::Uuid;
 use wiremock::MockServer;
+
+fn _init_test_subscriber() {
+    static SUBSCRIBER: OnceLock<()> = OnceLock::new();
+    SUBSCRIBER.get_or_init(|| {
+        init_tracing();
+    });
+}
 
 pub struct ConfirmationLinks {
     pub html: reqwest::Url,
@@ -95,11 +102,4 @@ impl TestApp {
         let plain_text = get_link(body["TextBody"].as_str().context("No link in TextBody")?)?;
         Ok(ConfirmationLinks { html, plain_text })
     }
-}
-
-fn _init_test_subscriber() {
-    static SUBSCRIBER: OnceLock<()> = OnceLock::new();
-    SUBSCRIBER.get_or_init(|| {
-        init_dbg_tracing();
-    });
 }

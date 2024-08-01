@@ -1,5 +1,10 @@
-use axum::extract::Query;
+use axum::{
+    extract::{Query, State},
+    http::StatusCode,
+};
 use serde::Deserialize;
+
+use crate::AppState;
 
 use super::Result;
 
@@ -8,7 +13,10 @@ pub struct SubscribeConfirmQuery {
     subscription_token: String,
 }
 
-#[tracing::instrument(name = "Confirm a pending subscriber")]
-pub async fn confirm(query: Query<SubscribeConfirmQuery>) -> Result<()> {
-    Ok(())
+#[tracing::instrument(name = "Confirm a pending subscriber", skip(app_state))]
+pub async fn confirm(
+    State(app_state): State<AppState>,
+    query: Query<SubscribeConfirmQuery>,
+) -> Result<StatusCode> {
+    Ok(StatusCode::OK)
 }

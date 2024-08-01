@@ -4,6 +4,7 @@ mod error;
 pub mod model;
 pub mod web;
 
+use derive_more::Deref;
 use std::{net::SocketAddr, sync::Arc};
 use tokio::net::TcpListener;
 use tracing::info;
@@ -17,18 +18,8 @@ pub use web::serve;
 
 use tracing_subscriber::EnvFilter;
 
-// Initialize tracing for DEV
-pub fn init_dbg_tracing() {
-    tracing_subscriber::fmt()
-        .with_target(false)
-        .without_time()
-        .with_env_filter(EnvFilter::from_default_env())
-        .compact()
-        .init();
-}
-
-// Initialize tracing for PRODUCTION
-pub fn init_production_tracing() {
+// Initialize tracing
+pub fn init_tracing() {
     tracing_subscriber::fmt()
         .without_time()
         .with_target(false)
@@ -40,11 +31,11 @@ pub fn init_production_tracing() {
 // ->  Structs
 // ###################################
 pub struct App {
-    pub app_state: Arc<AppState>,
+    pub app_state: AppState,
     pub listener: TcpListener,
 }
 impl App {
-    pub fn new(app_state: Arc<AppState>, listener: TcpListener) -> Self {
+    pub fn new(app_state: AppState, listener: TcpListener) -> Self {
         App {
             app_state,
             listener,
@@ -73,17 +64,21 @@ impl App {
     }
 }
 
-pub struct AppState {
+pub struct InternalState {
     pub mm: ModelManager,
     pub email_client: EmailClient,
     pub base_url: String,
 }
+
+#[derive(Clone, Deref)]
+pub struct AppState(Arc<InternalState>);
+
 impl AppState {
-    pub fn new(mm: ModelManager, email_client: EmailClient, base_url: String) -> Arc<Self> {
-        Arc::new(AppState {
+    pub fn new(mm: ModelManager, email_client: EmailClient, base_url: String) -> Self {
+        AppState(Arc::new(InternalState {
             mm,
             email_client,
             base_url,
-        })
+        }))
     }
 }

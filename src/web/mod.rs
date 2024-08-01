@@ -6,8 +6,6 @@ mod serve;
 mod subscriptions;
 mod subscriptions_confirm;
 
-use std::sync::Arc;
-
 use axum::{
     http::StatusCode,
     routing::{get, post},
@@ -24,7 +22,7 @@ const REQUEST_ID_HEADER: &str = "x-request-id";
 // ###################################
 // ->   ROUTES
 // ###################################
-pub fn routes(app_state: Arc<AppState>) -> Router {
+pub fn routes(app_state: AppState) -> Router {
     Router::new()
         .route("/api/subscribe", post(subscriptions::api_subscribe))
         .route(
@@ -35,7 +33,6 @@ pub fn routes(app_state: Arc<AppState>) -> Router {
         .route("/health-check", get(health_check))
 }
 
-#[tracing::instrument(name = "HEALTHCHECK")]
 async fn health_check() -> StatusCode {
     StatusCode::OK
 }

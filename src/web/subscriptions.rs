@@ -1,5 +1,3 @@
-use std::{char, sync::Arc};
-
 use axum::{extract::State, http::StatusCode, Json};
 use chrono::Utc;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
@@ -21,7 +19,7 @@ use crate::{email_client::MessageStream, model::ModelManager, AppState, EmailCli
     )
 )]
 pub async fn api_subscribe(
-    State(app_state): State<Arc<AppState>>,
+    State(app_state): State<AppState>,
     Json(subscriber): Json<DeserSubscriber>,
 ) -> Result<StatusCode> {
     // Spawn a blocking task to validate the subscriber info and generate subscription token.
@@ -32,6 +30,7 @@ pub async fn api_subscribe(
 
     let subscriber_id = insert_subscriber(app_state.mm.clone(), subscriber.clone()).await?;
     insert_subscription_token(app_state.mm.clone(), &subscription_token, subscriber_id).await?;
+    info!("SUCCESS");
 
     send_confirmation_email(
         &app_state.email_client,
@@ -42,6 +41,26 @@ pub async fn api_subscribe(
     .await?;
 
     Ok(StatusCode::OK)
+}
+
+async fn insert_subscriber(mm: ModelManager, subscriber: ValidSubscriber) -> Result<Uuid> {
+    let db_pool = mm.db();
+    let subscriber_id = Uuid::new_v4();
+
+    sqlx::query(
+        r#"
+        INSERT INTO subscriptions (id, email, name, subscribed_at, status)
+        VALUES ($1, $2, $3, $4, 'pending_confirmation')
+    "#,
+    )
+    .bind(subscriber_id)
+    .bind(subscriber.email.as_ref())
+    .bind(subscriber.name.as_ref())
+    .bind(Utc::now())
+    .execute(db_pool)
+    .await?;
+
+    Ok(subscriber_id)
 }
 
 async fn insert_subscription_token(
@@ -63,31 +82,9 @@ async fn insert_subscription_token(
     Ok(())
 }
 
-async fn insert_subscriber(mm: ModelManager, subscriber: ValidSubscriber) -> Result<Uuid> {
-    let db_pool = mm.db();
-    let subscriber_id = Uuid::new_v4();
-
-    sqlx::query(
-        r#"
-        INSERT INTO subscriptions (id, email, name, subscribed_at, status)
-        VALUES ($1, $2, $3, $4, 'pending_confirmation')
-    "#,
-    )
-    .bind(subscriber_id)
-    .bind(subscriber.email.as_ref())
-    .bind(subscriber.name.as_ref())
-    .bind(Utc::now())
-    .execute(db_pool)
-    .await?;
-
-    info!("New subscriber succesfully added to the list.");
-
-    Ok(subscriber_id)
-}
-
 #[tracing::instrument(
     name = "Sending confirmation email",
-    skip(email_client, base_url, subscription_token)
+    skip(email_client, base_url, subscription_token, subscriber)
 )]
 async fn send_confirmation_email(
     email_client: &EmailClient,
@@ -115,6 +112,7 @@ async fn send_confirmation_email(
         )
         .await?;
 
+    info!("SUCCESS");
     Ok(())
 }
 

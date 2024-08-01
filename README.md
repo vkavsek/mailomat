@@ -13,9 +13,9 @@ Uses Axum instead of Actix with hosting on Fly.io.
 - flyctl (for Deployment and Monitoring only)
 
 ### Development: 
-- It needs a running Postgres database for the tests to work. 
-You can initialize the Docker image running a PG_DB with `scripts/init_docker_db.sh` script.
-By default the script tries to delete the previous Docker image with the same name, 
+ It needs a running Postgres database for the tests to work. 
+ You can initialize the Docker image running a Postgres database with `scripts/init_docker_db.sh` script.
+ By default the script tries to delete the previous Docker image with the same name, 
 if running for the first time you need to run it like so:
 #### bash
 ```sh
@@ -25,6 +25,9 @@ SKIP_DB_RESET=1 ./scripts/init_docker_db.sh
 ```fish
 env SKIP_DB_RESET=1 ./scripts/init_docker_db.sh
 ```
+
+#### Note
+SQLX uses .env file to access **DATABASE_URL** enviroment variable for static checking (`query` macro).
 
 ### Deployment: 
 CI deploys to Fly.io automatically if all the checks are succesful.

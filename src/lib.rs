@@ -61,8 +61,8 @@ impl App {
             config.email_config.timeout(),
         )?;
         let mm = ModelManager::init(config).await?;
-
-        let app_state = AppState::new(mm, email_client);
+        let base_url = config.net_config.base_url.clone();
+        let app_state = AppState::new(mm, email_client, base_url);
 
         let addr = SocketAddr::from((config.net_config.host, config.net_config.app_port));
         let listener = TcpListener::bind(addr).await?;
@@ -76,9 +76,14 @@ impl App {
 pub struct AppState {
     pub mm: ModelManager,
     pub email_client: EmailClient,
+    pub base_url: String,
 }
 impl AppState {
-    pub fn new(mm: ModelManager, email_client: EmailClient) -> Arc<Self> {
-        Arc::new(AppState { mm, email_client })
+    pub fn new(mm: ModelManager, email_client: EmailClient, base_url: String) -> Arc<Self> {
+        Arc::new(AppState {
+            mm,
+            email_client,
+            base_url,
+        })
     }
 }

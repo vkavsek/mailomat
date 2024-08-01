@@ -1,10 +1,17 @@
 use std::{net::SocketAddr, sync::OnceLock};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use linkify::LinkKind;
 use mailomat::{config::get_or_init_config, init_dbg_tracing, model::ModelManager, App};
 use reqwest::Client;
+use serde_json::Value;
 use uuid::Uuid;
 use wiremock::MockServer;
+
+pub struct ConfirmationLinks {
+    pub html: reqwest::Url,
+    pub plain_text: reqwest::Url,
+}
 
 pub struct TestApp {
     pub http_client: Client,
@@ -13,13 +20,42 @@ pub struct TestApp {
     pub email_server: MockServer,
 }
 impl TestApp {
-    pub fn new(addr: SocketAddr, mm: ModelManager, email_server: MockServer) -> Self {
-        TestApp {
+    /// A helper function that tries to spawn a separate thread to serve our app
+    /// returning the *socket address* on which it is listening.
+    pub async fn spawn() -> Result<Self> {
+        _init_test_subscriber();
+
+        // A mock server to stand-in for Postmark API
+        let email_server = MockServer::start().await;
+
+        let config = {
+            let mut c = get_or_init_config().to_owned();
+            // A new name for each test
+            c.db_config.db_name = Uuid::new_v4().to_string();
+            // Trying to bind port 0 will trigger an OS scan for an available port
+            // which will then be bound to the application.
+            c.net_config.app_port = 0;
+            c.email_config.url = email_server.uri();
+            c
+        };
+
+        // Create and migrate the test DB
+        ModelManager::configure_for_test(&config).await?;
+
+        let app = App::build_from_config(&config).await?;
+
+        let addr = app.listener.local_addr()?;
+        let mm = app.app_state.mm.clone();
+        let http_client = Client::new();
+
+        tokio::spawn(mailomat::serve(app));
+
+        Ok(TestApp {
+            http_client,
             addr,
             mm,
-            http_client: Client::new(),
             email_server,
-        }
+        })
     }
 
     pub async fn post_subscriptions(&self, body: &serde_json::Value) -> Result<reqwest::Response> {
@@ -32,6 +68,33 @@ impl TestApp {
 
         Ok(res)
     }
+
+    /// Extract confirmation links embedded in the request to the email API.
+    pub fn get_confirmation_links(
+        &self,
+        email_req: &wiremock::Request,
+    ) -> Result<ConfirmationLinks> {
+        let body: Value = serde_json::from_slice(&email_req.body)?;
+
+        let get_link = |s: &str| {
+            let links: Vec<_> = linkify::LinkFinder::new()
+                .links(s)
+                .filter(|l| l.kind() == &LinkKind::Url)
+                .collect();
+            assert_eq!(links.len(), 1);
+
+            let raw_link = links[0].as_str().to_owned();
+            let mut confirm_link = reqwest::Url::parse(&raw_link)?;
+            // Check that we don't call random API's on the web.
+            assert_eq!(confirm_link.host_str(), Some("127.0.0.1"));
+            confirm_link.set_port(Some(self.addr.port())).unwrap();
+            Ok::<reqwest::Url, anyhow::Error>(confirm_link)
+        };
+
+        let html = get_link(body["HtmlBody"].as_str().context("No link in HtmlBody")?)?;
+        let plain_text = get_link(body["TextBody"].as_str().context("No link in TextBody")?)?;
+        Ok(ConfirmationLinks { html, plain_text })
+    }
 }
 
 fn _init_test_subscriber() {
@@ -39,37 +102,4 @@ fn _init_test_subscriber() {
     SUBSCRIBER.get_or_init(|| {
         init_dbg_tracing();
     });
-}
-
-/// A helper function that tries to spawn a separate thread to serve our app
-/// returning the *socket address* on which it is listening.
-pub async fn spawn_test_app() -> Result<TestApp> {
-    // _init_test_subscriber();
-
-    // A mock server to stand-in for Postmark API
-    let email_server = MockServer::start().await;
-
-    let config = {
-        let mut c = get_or_init_config().to_owned();
-        // A new name for each test
-        c.db_config.db_name = Uuid::new_v4().to_string();
-        // Trying to bind port 0 will trigger an OS scan for an available port
-        // which will then be bound to the application.
-        c.net_config.app_port = 0;
-        c.email_config.url = email_server.uri();
-        c
-    };
-
-    // Create and migrate the test DB
-    ModelManager::configure_for_test(&config).await?;
-
-    let app = App::build_from_config(&config).await?;
-
-    let addr = app.listener.local_addr()?;
-    let mm = app.app_state.mm.clone();
-
-    tokio::spawn(mailomat::serve(app));
-
-    let res = TestApp::new(addr, mm, email_server);
-    Ok(res)
 }

@@ -1,5 +1,6 @@
 [net_config]
 host = [0, 0, 0, 0]
+base_url = "https://mailomat.fly.dev"
 
 # NOTE:
 # Why no SSL in production?

@@ -6,11 +6,11 @@ use wiremock::{
     Mock, ResponseTemplate,
 };
 
-use crate::helpers::spawn_test_app;
+use crate::helpers::{ConfirmationLinks, TestApp};
 
 #[tokio::test]
 async fn api_subscribe_returns_200_for_valid_json() -> Result<()> {
-    let app = spawn_test_app().await?;
+    let app = TestApp::spawn().await?;
 
     let json_request = json!({
         "name": "John Doe",
@@ -21,6 +21,7 @@ async fn api_subscribe_returns_200_for_valid_json() -> Result<()> {
     Mock::given(path("/email"))
         .and(method("POST"))
         .respond_with(ResponseTemplate::new(200))
+        .expect(1)
         .mount(&app.email_server)
         .await;
 
@@ -38,7 +39,7 @@ async fn api_subscribe_returns_200_for_valid_json() -> Result<()> {
 
 #[tokio::test]
 async fn api_subscribe_persists_the_new_subscriber() -> Result<()> {
-    let app = spawn_test_app().await?;
+    let app = TestApp::spawn().await?;
 
     let json_request = json!({
         "name": "John Doe",
@@ -49,6 +50,7 @@ async fn api_subscribe_persists_the_new_subscriber() -> Result<()> {
     Mock::given(path("/email"))
         .and(method("POST"))
         .respond_with(ResponseTemplate::new(200))
+        .expect(1)
         .mount(&app.email_server)
         .await;
 
@@ -68,7 +70,7 @@ async fn api_subscribe_persists_the_new_subscriber() -> Result<()> {
 
 #[tokio::test]
 async fn api_subscribe_unprocessable_entity() -> Result<()> {
-    let app = spawn_test_app().await?;
+    let app = TestApp::spawn().await?;
 
     let tests = [
         (
@@ -103,7 +105,7 @@ async fn api_subscribe_unprocessable_entity() -> Result<()> {
 
 #[tokio::test]
 async fn api_subscribe_returns_a_400_when_fields_are_present_but_invalid() -> Result<()> {
-    let app = spawn_test_app().await?;
+    let app = TestApp::spawn().await?;
 
     let cases = vec![
         (
@@ -144,7 +146,7 @@ async fn api_subscribe_returns_a_400_when_fields_are_present_but_invalid() -> Re
 
 #[tokio::test]
 async fn api_subscribe_sends_a_confirmation_email_for_valid_data() -> Result<()> {
-    let app = spawn_test_app().await?;
+    let app = TestApp::spawn().await?;
     let body = json!({
         "name": "Ursula",
         "email": "le_guin@gmail.com",
@@ -166,7 +168,7 @@ async fn api_subscribe_sends_a_confirmation_email_for_valid_data() -> Result<()>
 
 #[tokio::test]
 async fn api_subscribe_sends_a_confirmation_email_with_a_link() -> Result<()> {
-    let app = spawn_test_app().await?;
+    let app = TestApp::spawn().await?;
     let body = json!({
         "name": "Ursula",
         "email": "le_guin@gmail.com",
@@ -183,21 +185,9 @@ async fn api_subscribe_sends_a_confirmation_email_with_a_link() -> Result<()> {
 
     // Get the first intercepted request
     let email_req = &app.email_server.received_requests().await.unwrap()[0];
-    let body: serde_json::Value = serde_json::from_slice(&email_req.body)?;
+    let ConfirmationLinks { html, plain_text } = app.get_confirmation_links(email_req)?;
 
-    let get_link = |s: &str| {
-        let links: Vec<_> = linkify::LinkFinder::new()
-            .links(s)
-            .filter(|l| l.kind() == &linkify::LinkKind::Url)
-            .collect();
-        assert_eq!(links.len(), 1);
-        links[0].as_str().to_owned()
-    };
-
-    let html_link = get_link(body["HtmlBody"].as_str().unwrap());
-    let text_link = get_link(body["TextBody"].as_str().unwrap());
-
-    assert_eq!(html_link, text_link);
+    assert_eq!(html, plain_text);
 
     Ok(())
 }

@@ -36,6 +36,7 @@ pub struct AppConfig {
 pub struct NetConfig {
     pub host: [u8; 4],
     pub app_port: u16,
+    pub base_url: String,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -241,7 +242,9 @@ impl std::error::Error for ConfigError {}
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::File, str::FromStr};
+    use std::fs::File;
+
+    use claims::assert_ok;
 
     use super::*;
 
@@ -251,65 +254,13 @@ mod tests {
         let config_dir = base_path.join("config");
         let base_file = File::open(config_dir.join("base.toml"))?;
         let local_file = File::open(config_dir.join("local.toml"))?;
-        let email_config = EmailConfig {
-            sender_addr: "admin@majkavsek.com".to_string(),
-            url: "https://api.postmarkapp.com".to_string(),
-            auth_token: "dev_token".to_string().into(),
-            timeout_millis: 10000,
-        };
-
-        let app_config = AppConfig {
-            net_config: NetConfig {
-                host: [127, 0, 0, 1],
-                app_port: 8080,
-            },
-            db_config: DbConfig {
-                username: "postgres".to_string(),
-                password: SecretString::from_str("password").unwrap(),
-                port: 5432,
-                host: "127.0.0.1".to_string(),
-                db_name: "mailomat".to_string(),
-                require_ssl: SslRequire::Disable,
-            },
-            email_config,
-        };
 
         let test_app_config = AppConfig::init()
             .add_source_file(base_file)
             .add_source_file(local_file)
-            .build()?;
+            .build();
 
-        assert_eq!(test_app_config.net_config, app_config.net_config);
-        assert_eq!(
-            test_app_config.db_config.username,
-            app_config.db_config.username
-        );
-        assert_eq!(
-            test_app_config.db_config.password.expose_secret(),
-            app_config.db_config.password.expose_secret()
-        );
-        assert_eq!(test_app_config.db_config.port, app_config.db_config.port);
-        assert_eq!(test_app_config.db_config.host, app_config.db_config.host);
-        assert_eq!(
-            test_app_config.db_config.db_name,
-            app_config.db_config.db_name
-        );
-        assert_eq!(
-            test_app_config.email_config.sender_addr,
-            app_config.email_config.sender_addr
-        );
-        assert_eq!(
-            test_app_config.email_config.url,
-            app_config.email_config.url
-        );
-        assert_eq!(
-            test_app_config.email_config.auth_token.expose_secret(),
-            app_config.email_config.auth_token.expose_secret()
-        );
-        assert_eq!(
-            test_app_config.email_config.timeout_millis,
-            app_config.email_config.timeout_millis
-        );
+        assert_ok!(test_app_config);
 
         Ok(())
     }

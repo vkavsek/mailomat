@@ -37,6 +37,7 @@ unicode-segmentation = "1"
 # Others
 secrecy = { version = "0.8", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
+rand = { version = "0.8", features = ["std_rng"] }
 # REQWEST
 [dependencies.reqwest]
 version = "0.12"
@@ -46,13 +47,19 @@ features = ["json", "rustls-tls"]
 [dependencies.sqlx]
 version = "0.8"
 default-features = false
-features = ["runtime-tokio-rustls", "macros", "postgres", "chrono", "migrate"]
+features = [
+  "runtime-tokio-rustls",
+  "macros",
+  "postgres",
+  "chrono",
+  "migrate",
+  "uuid",
+]
 
 [dev-dependencies]
 anyhow = "1"
 claims = "0.7"
 fake = "2.9"
-rand = "0.8"
 quickcheck = "1"
 quickcheck_macros = "1"
 wiremock = "0.6"

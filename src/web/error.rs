@@ -17,6 +17,7 @@ pub type Result<T> = core::result::Result<T, Error>;
 pub enum Error {
     UuidNotInHeader,
     HeaderToStrFail,
+    Unauthorized,
 
     #[from]
     DataParsing(super::data::DataParsingError),
@@ -57,6 +58,7 @@ impl Error {
         };
 
         match self {
+            Error::Unauthorized => (StatusCode::UNAUTHORIZED, Unauthorized),
             Error::DataParsing(data_er) => {
                 (StatusCode::BAD_REQUEST, InvalidInput(data_er.to_string()))
             }
@@ -88,4 +90,5 @@ impl IntoResponse for Error {
 pub enum ClientError {
     InvalidInput(String),
     ServiceError,
+    Unauthorized,
 }

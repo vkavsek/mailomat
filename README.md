@@ -2,32 +2,44 @@
 ### WIP
 
 My version of the app built in [Zero To Production In Rust](https://www.zero2prod.com). 
-Uses Axum instead of Actix with hosting on Fly.io.
+Uses [Axum](https://github.com/tokio-rs/axum) instead of Actix with hosting on [Fly.io](https://fly.io/).
 
 ## Info: 
 
 ### Before running you need: 
 - Docker
-- sqlx
+- sqlx CLI app
 - psql
 - flyctl (for Deployment and Monitoring only)
 
 ### Development: 
- It needs a running Postgres database for the tests to work. 
- You can initialize the Docker image running a Postgres database with `scripts/init_docker_db.sh` script.
- By default the script tries to delete the previous Docker image with the same name, 
+ - It needs a running Postgres database for the tests to work. 
+ - You can initialize the Docker image running a Postgres database with `scripts/init_docker_db.sh` script.
+
+By default the script tries to delete the previous Docker image with the same name, 
 if running for the first time you need to run it like so:
-#### bash
+##### bash
 ```sh
 SKIP_DB_RESET=1 ./scripts/init_docker_db.sh
 ```
-#### fish
+##### fish
 ```fish
 env SKIP_DB_RESET=1 ./scripts/init_docker_db.sh
 ```
 
-#### Note
-SQLX uses .env file to access **DATABASE_URL** enviroment variable for static checking (`query` macro).
+#### Config notes
+Currently [figment](https://github.com/SergioBenitez/Figment) is used to build the config. You can inject values at runtime with enviroment variables
+that start with a prefix "CONFIG__", and fields separated by "__" like so:
+```sh 
+CONFIG__NET_CONFIG__APP_PORT=8000
+```
+
+#### SQLX notes
+[SQLX](https://github.com/launchbadge/sqlx) uses .env file to access **DATABASE_URL** enviroment variable for static checking (`query` macro).
+
+#### Tera notes
+[Tera](https://keats.github.io/tera/) is used as a templating engine. You can modify the templates in the templates folder.
+
 
 ### Deployment: 
 CI deploys to Fly.io automatically if all the checks are succesful.

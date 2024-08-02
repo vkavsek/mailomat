@@ -52,7 +52,7 @@ impl TestApp {
         let app = App::build_from_config(&config).await?;
 
         let addr = app.listener.local_addr()?;
-        let mm = app.app_state.mm.clone();
+        let mm = app.app_state.model_mgr.clone();
         let http_client = Client::new();
 
         tokio::spawn(mailomat::serve(app));

@@ -1,3 +1,5 @@
+//! The configuration structs used to build the AppConfig, and their impls.
+//! TODO: Use figment instead of a custom AppConfigBuilder implementation?
 use std::{
     collections::{hash_map::Entry, HashMap},
     io::Read,

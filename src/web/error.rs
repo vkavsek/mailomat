@@ -30,6 +30,8 @@ pub enum Error {
     Io(#[serde_as(as = "DisplayFromStr")] std::io::Error),
     #[from]
     SqlxCore(#[serde_as(as = "DisplayFromStr")] sqlx::Error),
+    #[from]
+    Tera(#[serde_as(as = "DisplayFromStr")] tera::Error),
 }
 
 // Error Boilerplate

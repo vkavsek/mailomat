@@ -1,0 +1,2 @@
+Hello {{ subscriber_name }}!
+Visit {{ confirmation_link }} to confirm your subscription!

@@ -26,7 +26,7 @@ pub async fn confirm(
     State(app_state): State<AppState>,
     Query(subscription_token): Query<SubscribeConfirmQuery>,
 ) -> Result<StatusCode> {
-    let db_pool = app_state.mm.db();
+    let db_pool = app_state.model_mgr.db();
 
     // Get the subscriber_id record from the database.
     // We also retrieve subscription_token because of the quirks of query_as

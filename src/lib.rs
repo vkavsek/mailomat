@@ -2,10 +2,12 @@ pub mod config;
 pub mod email_client;
 mod error;
 pub mod model;
+pub mod template_manager;
 pub mod web;
 
 use derive_more::Deref;
 use std::{net::SocketAddr, sync::Arc};
+use template_manager::TemplateManager;
 use tokio::net::TcpListener;
 use tracing::info;
 
@@ -51,9 +53,11 @@ impl App {
             config.email_config.auth_token.clone(),
             config.email_config.timeout(),
         )?;
+        let tm = TemplateManager::init();
+
         let mm = ModelManager::init(config).await?;
         let base_url = config.net_config.base_url.clone();
-        let app_state = AppState::new(mm, email_client, base_url);
+        let app_state = AppState::new(mm, tm, email_client, base_url);
 
         let addr = SocketAddr::from((config.net_config.host, config.net_config.app_port));
         let listener = TcpListener::bind(addr).await?;
@@ -65,18 +69,27 @@ impl App {
 }
 
 pub struct InternalState {
-    pub mm: ModelManager,
+    pub model_mgr: ModelManager,
+    pub templ_mgr: TemplateManager,
     pub email_client: EmailClient,
     pub base_url: String,
 }
 
+/// Application state containing all global data.
+/// It implements `Deref` to easily access the fields on `InternalState`
 #[derive(Clone, Deref)]
 pub struct AppState(Arc<InternalState>);
 
 impl AppState {
-    pub fn new(mm: ModelManager, email_client: EmailClient, base_url: String) -> Self {
+    pub fn new(
+        model_mgr: ModelManager,
+        templ_mgr: TemplateManager,
+        email_client: EmailClient,
+        base_url: String,
+    ) -> Self {
         AppState(Arc::new(InternalState {
-            mm,
+            templ_mgr,
+            model_mgr,
             email_client,
             base_url,
         }))

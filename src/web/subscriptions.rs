@@ -2,6 +2,7 @@ use axum::{extract::State, http::StatusCode, Json};
 use chrono::Utc;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use sqlx::{Executor, Postgres, Transaction};
+use tera::{Context, Tera};
 use tracing::info;
 use uuid::Uuid;
 
@@ -9,7 +10,7 @@ use super::{
     data::{DeserSubscriber, ValidSubscriber},
     Result,
 };
-use crate::{email_client::MessageStream, AppState, EmailClient};
+use crate::{email_client::MessageStream, AppState};
 
 #[tracing::instrument(
     name = "Saving new subscriber to the database",
@@ -30,19 +31,13 @@ pub async fn api_subscribe(
     let subscriber: ValidSubscriber = subscriber?;
 
     // BEGIN sql transaction
-    let mut transaction = app_state.mm.db().begin().await?;
+    let mut transaction = app_state.model_mgr.db().begin().await?;
     let subscriber_id = insert_subscriber(&mut transaction, subscriber.clone()).await?;
     insert_subscription_token(&mut transaction, &subscription_token, subscriber_id).await?;
     transaction.commit().await?;
     // END sql transaction
 
-    send_confirmation_email(
-        &app_state.email_client,
-        &subscriber,
-        &app_state.base_url,
-        &subscription_token,
-    )
-    .await?;
+    send_confirmation_email(app_state, &subscriber, &subscription_token).await?;
 
     Ok(StatusCode::OK)
 }
@@ -88,36 +83,59 @@ async fn insert_subscription_token(
 
 #[tracing::instrument(
     name = "Sending confirmation email",
-    skip(email_client, base_url, subscription_token, subscriber)
+    skip(app_state, subscription_token, subscriber)
 )]
 async fn send_confirmation_email(
-    email_client: &EmailClient,
+    app_state: AppState,
     subscriber: &ValidSubscriber,
-    base_url: &str,
     subscription_token: &str,
 ) -> Result<()> {
+    let email_client = &app_state.email_client;
+    let base_url = &app_state.base_url;
+    let tera = app_state.templ_mgr.tera();
+
     let confirmation_link =
         format!("{base_url}/subscriptions/confirm?subscription_token={subscription_token}",);
+
+    let html_email = render_confirmation_email_from_template(
+        "html_email.html",
+        tera,
+        subscriber,
+        &confirmation_link,
+    )?;
+    let plain_email = render_confirmation_email_from_template(
+        "plain_email.txt",
+        tera,
+        subscriber,
+        &confirmation_link,
+    )?;
 
     email_client
         .send_email(
             &subscriber.email,
-            "Welcome!",
-            &format!(
-                "Welcome to our newsletter! <br/>\
-                Click <a href={}>here</a> to confirm your subscription.",
-                confirmation_link
-            ),
-            &format!(
-                "Welcome to our newsletter!\n Visit {} to confirm your subscription",
-                confirmation_link
-            ),
+            "Welcome to our newsletter!",
+            &html_email,
+            &plain_email,
             MessageStream::Outbound,
         )
         .await?;
 
     info!("SUCCESS");
     Ok(())
+}
+
+fn render_confirmation_email_from_template(
+    template_name: &str,
+    tera: &Tera,
+    subscriber: &ValidSubscriber,
+    confirmation_link: &str,
+) -> Result<String> {
+    let mut ctx = Context::new();
+    ctx.insert("subscriber_name", subscriber.name.as_ref());
+    ctx.insert("confirmation_link", confirmation_link);
+
+    let out = tera.render(template_name, &ctx)?;
+    Ok(out)
 }
 
 /// Generate a random 25 character-long case-sensitive subscription token.

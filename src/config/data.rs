@@ -1,5 +1,4 @@
 //! The configuration structs used to build the AppConfig, and their impls.
-//! TODO: Use figment instead of a custom AppConfigBuilder implementation?
 use std::{
     collections::{hash_map::Entry, HashMap},
     io::Read,
@@ -18,6 +17,8 @@ use toml::Value;
 // ###################################
 // ->   STRUCTS
 // ###################################
+/// Not currently used.
+/// TODO: Remove
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct AppConfigBuilder(HashMap<String, HashMap<String, Value>>);
 
@@ -86,6 +87,8 @@ impl AppConfig {
     }
 }
 
+/// Not currently used.
+/// TODO: Remove
 impl AppConfigBuilder {
     /// Extends this `AppConfigBuilder` with the contents of `other` builder.
     fn extend_builder(&mut self, other: Self) {
@@ -250,6 +253,8 @@ mod tests {
 
     use super::*;
 
+    /// Not currently used.
+    /// TODO: Remove
     #[test]
     fn app_config_add_source_and_build_ok() -> ConfigResult<()> {
         let base_path = std::env::current_dir().expect("Failed to determine the current DIR.");

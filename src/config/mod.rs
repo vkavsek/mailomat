@@ -4,6 +4,11 @@
 
 mod data;
 
+use core::panic;
+use figment::{
+    providers::{Env, Format, Toml},
+    Figment,
+};
 use std::sync::OnceLock;
 use tracing::info;
 
@@ -32,20 +37,17 @@ pub fn get_or_init_config() -> &'static AppConfig {
             .expect("Failed to parse APP_ENVIRONMENT.");
         let environment_filename = format!("{}.toml", environment.as_ref().to_lowercase());
 
-        let base_file = std::fs::File::open(config_dir.join("base.toml"))
-            .unwrap_or_else(|er| panic!("Fatal Error: Building config: {er}"));
-        let env_file = std::fs::File::open(config_dir.join(environment_filename))
-            .unwrap_or_else(|er| panic!("Fatal Error: Building config: {er}"));
-
-        let mut config = AppConfig::init()
-            .add_source_file(base_file)
-            .add_source_file(env_file)
-            .build()
-            .unwrap_or_else(|er| panic!("Fatal Error: Building config: {er}"));
+        let mut config: AppConfig = Figment::new()
+            .merge(Toml::file(config_dir.join("base.toml")))
+            .merge(Toml::file(config_dir.join(environment_filename)))
+            .merge(Env::prefixed("CONFIG__").split("__"))
+            .extract()
+            .unwrap_or_else(|e| panic!("Unable to build AppConfig: {}", e.to_string()));
 
         // Setup DbConfig for production
         if matches!(environment, Environment::Production) {
             // Panic early if there are any problems.
+            // DATABASE_URL is a secret provided by Fly.io
             let production_db = std::env::var("DATABASE_URL").unwrap_or_else(|er| {
                 panic!("Fatal Error: While looking for DATABASE_URL env variable: {er:?}")
             });

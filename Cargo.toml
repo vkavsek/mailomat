@@ -36,6 +36,8 @@ lazy-regex = "3"
 unicode-segmentation = "1"
 # Templating
 tera = "1"
+# Config
+figment = { version = "0.10", features = ["env", "toml"] }
 # Others
 secrecy = { version = "0.8", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }

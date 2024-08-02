@@ -97,6 +97,7 @@ async fn send_confirmation_email(
     let confirmation_link =
         format!("{base_url}/subscriptions/confirm?subscription_token={subscription_token}",);
 
+    // I think blocking here shouldn't matter much
     let html_email = render_confirmation_email_from_template(
         "html_email.html",
         tera,

@@ -7,10 +7,11 @@ Uses [Axum](https://github.com/tokio-rs/axum) instead of Actix with hosting on [
 ## Info: 
 
 ### Before running you need: 
-- Docker
-- sqlx CLI app
-- psql
-- flyctl (for Deployment and Monitoring only)
+- [mold](https://github.com/rui314/mold)
+- [Docker](https://www.docker.com/)
+- [sqlx](https://github.com/launchbadge/sqlx) CLI app
+- [psql](https://www.postgresql.org/download/)
+- [flyctl](https://fly.io/docs/flyctl/install/) (for Deployment and Monitoring only)
 
 ### Development: 
  - It needs a running Postgres database for the tests to work. 

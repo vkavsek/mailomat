@@ -41,9 +41,10 @@ RUN apt-get update -y \
 
 # Copy the compiled binary from builder to runtime.
 COPY --from=builder /app/target/release/mailomat mailomat
-# config/ is needed at runtime!
+# config/ & templates/ is needed at runtime!
 COPY config config
-ENV APP_ENVIRONMENT production
-ENV RUST_LOG info
+COPY templates templates
+ENV APP_ENVIRONMENT=production
+ENV RUST_LOG=info
 
 ENTRYPOINT [ "./mailomat" ]

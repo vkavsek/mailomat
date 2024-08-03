@@ -37,29 +37,18 @@ pub async fn confirm(
     .bind(subscription_token.deref())
     .fetch_optional(db_pool)
     .await?
-    // Non-existing token!
     .ok_or_else(|| Error::Unauthorized)?;
-    debug!("Retrieved subscriber_id: {subscriber_id}");
 
     // Update the status of the subscriber - CONFIRM SUBSCRIBER
     sqlx::query(
         r#"UPDATE subscriptions
-        SET status = 'confirmed' WHERE id = $1"#,
+        SET status = 'confirmed' 
+        WHERE id = $1 AND status != 'confirmed'"#,
     )
     .bind(subscriber_id)
     .execute(db_pool)
     .await?;
     debug!("Subscriber status confirmed!");
-
-    // Delete the entry from the subscription_tokens table
-    sqlx::query(
-        r#"DELETE FROM subscription_tokens
-    WHERE subscription_token = $1"#,
-    )
-    .bind(subscription_token.deref())
-    .execute(db_pool)
-    .await?;
-    debug!("Deleted the entry from 'subscription_tokens'");
 
     Ok(StatusCode::OK)
 }

@@ -38,7 +38,7 @@ async fn init_db(config: &AppConfig) -> Result<PgPool> {
         .acquire_timeout(Duration::from_millis(500))
         .connect_with(con_opts)
         .await
-        .map_err(|ex| crate::Error::ModelFailToCreatePool(ex.to_string()))?;
+        .map_err(|ex| crate::Error::ModelFailToCreatePool(format!("Standard DB Pool: {}", ex)))?;
 
     Ok(db_pool)
 }
@@ -57,7 +57,7 @@ async fn configure_test_db(config: &AppConfig) -> Result<()> {
         .acquire_timeout(Duration::from_millis(500))
         .connect_with(db_config.connection_options())
         .await
-        .map_err(|ex| crate::Error::ModelFailToCreatePool(ex.to_string()))?;
+        .map_err(|ex| crate::Error::ModelFailToCreatePool(format!("Test Config: {}", ex)))?;
     // Migrate DB
     sqlx::migrate!("./migrations").run(&db_pool).await?;
 

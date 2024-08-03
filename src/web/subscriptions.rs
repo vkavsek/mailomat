@@ -1,6 +1,7 @@
+use std::ops::Deref;
+
 use axum::{extract::State, http::StatusCode, Json};
 use chrono::Utc;
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use sqlx::{postgres::PgQueryResult, Executor, Postgres, Transaction};
 use tera::{Context, Tera};
 use tracing::info;
@@ -9,7 +10,7 @@ use uuid::Uuid;
 use crate::{
     email_client::MessageStream,
     web::{
-        data::{DeserSubscriber, ValidSubscriber},
+        data::{DeserSubscriber, SubscriptionToken, ValidSubscriber},
         Result,
     },
     AppState,
@@ -29,7 +30,7 @@ pub async fn api_subscribe(
 ) -> Result<(StatusCode, &'static str)> {
     // Spawn a blocking task to validate the subscriber info and generate subscription token.
     let (subscriber, subscription_token) =
-        tokio::task::spawn_blocking(move || (subscriber.try_into(), generate_subscription_token()))
+        tokio::task::spawn_blocking(move || (subscriber.try_into(), SubscriptionToken::generate()))
             .await?;
     let subscriber: ValidSubscriber = subscriber?;
     let standard_response = (
@@ -86,9 +87,10 @@ async fn insert_subscriber(
 
 async fn insert_subscription_token(
     transaction: &mut Transaction<'_, Postgres>,
-    subscription_token: &str,
+    subscription_token: &SubscriptionToken,
     subscriber_id: Uuid,
 ) -> Result<()> {
+    let subscription_token = subscription_token.deref();
     let query = sqlx::query(
         r#"INSERT INTO subscription_tokens(subscription_token, subscriber_id)
     VALUES ($1, $2)"#,
@@ -108,8 +110,9 @@ async fn insert_subscription_token(
 async fn send_confirmation_email(
     app_state: AppState,
     subscriber: &ValidSubscriber,
-    subscription_token: &str,
+    subscription_token: &SubscriptionToken,
 ) -> Result<()> {
+    let subscription_token = subscription_token.deref();
     let email_client = &app_state.email_client;
     let base_url = &app_state.base_url;
     let tera = app_state.templ_mgr.tera();
@@ -193,13 +196,4 @@ fn render_confirmation_email_from_template(
 
     let out = tera.render(template_name, &ctx)?;
     Ok(out)
-}
-
-/// Generate a random 25 character-long case-sensitive subscription token.
-fn generate_subscription_token() -> String {
-    let mut rng = thread_rng();
-    std::iter::repeat_with(|| rng.sample(Alphanumeric))
-        .map(char::from)
-        .take(25)
-        .collect()
 }

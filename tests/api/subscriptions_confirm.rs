@@ -160,3 +160,46 @@ async fn subscriptions_confirm_correctly_formed_non_existent_token_returns_401()
 
     Ok(())
 }
+
+#[serial]
+#[tokio::test]
+async fn subscriptions_confirm_invalid_sub_token_returns_400() -> Result<()> {
+    let app = TestApp::spawn().await?;
+    let body = json!({
+        "name": "John Doe",
+        "email": "john.doe@example.com"
+    });
+
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&app.email_server)
+        .await;
+
+    app.post_subscriptions(&body).await?;
+    let email_req = &app.email_server.received_requests().await.unwrap()[0];
+    let mut confirm_link = app.get_confirmation_links(email_req)?;
+
+    let original_query = confirm_link.html.query().unwrap().to_owned();
+    let query_chars_len = original_query.chars().count();
+    let ch_queries = ["-test", "{{123}}", "A|b|C", "test~", "čaša1", "test-"];
+    for ch_query in ch_queries {
+        let modified_query = format!(
+            "{}{ch_query}",
+            original_query
+                .chars()
+                .take(query_chars_len - 5)
+                .collect::<String>()
+        );
+
+        confirm_link.html.set_query(Some(&modified_query));
+        let res = app
+            .http_client
+            .get(confirm_link.html.clone())
+            .send()
+            .await?;
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    }
+
+    Ok(())
+}

@@ -6,10 +6,10 @@ use axum::{
 };
 use derive_more::Deref;
 use serde::Deserialize;
-use tracing::debug;
+use tracing::info;
 use uuid::Uuid;
 
-use super::{Error, Result};
+use super::{data::SubscriptionToken, Error, Result};
 use crate::AppState;
 
 #[derive(Debug, Deserialize, Deref)]
@@ -27,6 +27,11 @@ pub async fn confirm(
     Query(subscription_token): Query<SubscribeConfirmQuery>,
 ) -> Result<StatusCode> {
     let db_pool = app_state.model_mgr.db();
+    // Parse subscription token
+    let subscription_token =
+        tokio::task::spawn_blocking(move || SubscriptionToken::parse(subscription_token.deref()))
+            .await??;
+    let subscription_token = subscription_token.deref();
 
     // Get the subscriber_id record from the database.
     // We also retrieve subscription_token because of the quirks of query_as
@@ -34,7 +39,7 @@ pub async fn confirm(
         r#"SELECT subscriber_id, subscription_token FROM subscription_tokens
     WHERE subscription_token = $1"#,
     )
-    .bind(subscription_token.deref())
+    .bind(subscription_token)
     .fetch_optional(db_pool)
     .await?
     .ok_or_else(|| Error::Unauthorized)?;
@@ -48,7 +53,7 @@ pub async fn confirm(
     .bind(subscriber_id)
     .execute(db_pool)
     .await?;
-    debug!("Subscriber status confirmed!");
+    info!("SUCCESS!");
 
     Ok(StatusCode::OK)
 }

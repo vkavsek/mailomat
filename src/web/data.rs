@@ -1,3 +1,4 @@
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use unicode_segmentation::UnicodeSegmentation;
 use validator::ValidateEmail;
@@ -29,9 +30,42 @@ pub struct ValidEmail(String);
 #[derive(Debug, Clone)]
 pub struct ValidName(String);
 
+/// A random 25 character-long case-sensitive subscription token.
+#[derive(derive_more::Deref)]
+pub struct SubscriptionToken(String);
+
 // ###################################
 // ->   IMPLS
 // ###################################
+impl SubscriptionToken {
+    pub fn generate() -> Self {
+        let mut rng = thread_rng();
+        Self(
+            std::iter::repeat_with(|| rng.sample(Alphanumeric))
+                .map(char::from)
+                .take(25)
+                .collect(),
+        )
+    }
+
+    pub fn parse<S>(value: S) -> Result<Self, DataParsingError>
+    where
+        S: AsRef<str>,
+    {
+        let value = value.as_ref();
+
+        if value.graphemes(true).count() != 25 {
+            return Err(DataParsingError::SubTokenWrongLength(value.to_string()));
+        }
+
+        if value.chars().any(|c| !c.is_ascii_alphanumeric()) {
+            return Err(DataParsingError::SubTokenInvalidChars(value.to_string()));
+        }
+
+        Ok(Self(value.to_string()))
+    }
+}
+
 impl TryFrom<DeserSubscriber> for ValidSubscriber {
     type Error = DataParsingError;
 
@@ -108,6 +142,9 @@ pub enum DataParsingError {
 
     EmailInvalid,
     EmailTooLong,
+
+    SubTokenWrongLength(String),
+    SubTokenInvalidChars(String),
 }
 // Error Boilerplate
 impl core::fmt::Display for DataParsingError {

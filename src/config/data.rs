@@ -129,9 +129,7 @@ impl AppConfigBuilder {
 
 impl DbConfig {
     pub fn connection_options(&self) -> PgConnectOptions {
-        self.connection_options_without_db()
-            .database(&self.db_name)
-            .log_statements(tracing::log::LevelFilter::Debug)
+        self.connection_options_without_db().database(&self.db_name)
     }
     pub fn connection_options_without_db(&self) -> PgConnectOptions {
         // Create new PgConnectOptions struct but don't try to use the '$HOME/.pgpass' file.
@@ -141,6 +139,7 @@ impl DbConfig {
             .password(self.password.expose_secret())
             .port(self.port)
             .ssl_mode(self.require_ssl.into())
+            .log_statements(tracing::log::LevelFilter::Trace)
     }
 }
 

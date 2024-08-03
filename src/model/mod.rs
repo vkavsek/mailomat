@@ -29,9 +29,10 @@ impl ModelManager {
 }
 
 async fn init_db(config: &AppConfig) -> Result<PgPool> {
-    let con_opts = config.db_config.connection_options();
     // NOTE: Tests sometimes fail if there is more than 1 max connection. This fixes it.
     let max_cons = if cfg!(test) { 1 } else { 5 };
+
+    let con_opts = config.db_config.connection_options();
 
     let db_pool = PgPoolOptions::new()
         .max_connections(max_cons)
@@ -54,7 +55,7 @@ async fn configure_test_db(config: &AppConfig) -> Result<()> {
     // Create pool only used to migrate the DB
     let db_pool = PgPoolOptions::new()
         .max_connections(1)
-        .acquire_timeout(Duration::from_millis(500))
+        .acquire_timeout(Duration::from_millis(1000))
         .connect_with(db_config.connection_options())
         .await
         .map_err(|ex| crate::Error::ModelFailToCreatePool(format!("Test Config: {}", ex)))?;

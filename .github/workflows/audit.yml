@@ -1,4 +1,4 @@
-name: Security audit
+name: Security audit & Code Coverage
 on:
   schedule:
     - cron: '0 0 * * 1'  # This runs the workflow every Monday at midnight UTC
@@ -8,10 +8,46 @@ on:
       - '**/Cargo.lock'
   workflow_dispatch:
 jobs:
+
   security_audit:
+    name: Security Audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: taiki-e/install-action@cargo-deny
       - name: Scan for vulnerabilities
         run: cargo deny check advisories
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    services: 
+      postgres: 
+        image: postgres:16
+        env: 
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: postgres
+        ports: 
+          - 5432:5432
+    steps:
+      - uses: rui314/setup-mold@v1
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: sqlx-${{ env.SQLX_VERSION }}
+      - name: Install sqlx-cli
+        run:
+          cargo install sqlx-cli
+          --version=${{ env.SQLX_VERSION }}
+          --features ${{ env.SQLX_FEATURES }}
+          --no-default-features
+          --locked
+      - name: Migrate database
+        run: SKIP_DOCKER=true SKIP_DB_RESET=true ./scripts/init_docker_db.sh
+      - name: Generate code coverage
+        run: |
+          cargo tarpaulin --verbose --workspace

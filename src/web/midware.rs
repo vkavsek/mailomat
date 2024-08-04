@@ -20,7 +20,7 @@ pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Re
         .get(REQUEST_ID_HEADER)
         .ok_or_else(|| Error::UuidNotInHeader)?
         .to_str()
-        .map_err(|_| Error::HeaderToStrFail)?;
+        .map_err(|e| Error::HeaderToStrFail(e.to_string()))?;
 
     let web_error = resp.extensions().get::<Arc<Error>>().map(|er| {
         tracing::error!("WEB ERROR: {er:?}");
@@ -42,7 +42,7 @@ pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Re
                 }
             }
         });
-        tracing::error!("CLIENT ERROR: {client_error_body} ID: {uuid}");
+        tracing::error!("CLIENT ERROR: {client_error_body}");
 
         (*status, Json(client_error_body)).into_response()
     });

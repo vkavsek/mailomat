@@ -1,7 +1,10 @@
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use derive_more::{Deref, Display};
+use rand::{thread_rng, RngCore};
 use serde::{Deserialize, Serialize};
 use unicode_segmentation::UnicodeSegmentation;
 use validator::ValidateEmail;
+
+use crate::utils;
 
 // ###################################
 // ->   STRUCTS
@@ -30,22 +33,21 @@ pub struct ValidEmail(String);
 #[derive(Debug, Clone)]
 pub struct ValidName(String);
 
-/// A random 25 character-long case-sensitive subscription token.
-#[derive(derive_more::Deref)]
+/// A random 86 character-long case-sensitive Base64-URL encoded subscription token.
+#[derive(Deref)]
 pub struct SubscriptionToken(String);
 
 // ###################################
 // ->   IMPLS
 // ###################################
 impl SubscriptionToken {
+    /// Generates an array of 64 random bytes and encodes it to Base64-URL without padding.
     pub fn generate() -> Self {
-        let mut rng = thread_rng();
-        Self(
-            std::iter::repeat_with(|| rng.sample(Alphanumeric))
-                .map(char::from)
-                .take(25)
-                .collect(),
-        )
+        let mut rand_bytes = [0u8; 64];
+        thread_rng().fill_bytes(&mut rand_bytes);
+        let token = utils::b64u_encode(rand_bytes);
+
+        Self(token)
     }
 
     pub fn parse<S>(value: S) -> Result<Self, DataParsingError>
@@ -54,8 +56,7 @@ impl SubscriptionToken {
     {
         let value = value.as_ref();
 
-        if value.graphemes(true).count() != 25 || value.chars().any(|c| !c.is_ascii_alphanumeric())
-        {
+        if value.chars().count() != 86 || utils::b64u_decode(value).is_err() {
             return Err(DataParsingError::SubscriberTokenInvalid(value.to_string()));
         }
 
@@ -121,7 +122,7 @@ impl ValidName {
 
         let forbidden_characters = ['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
         if value.chars().any(|c| forbidden_characters.contains(&c)) {
-            return Err(DataParsingError::SubscriberNameForbidden);
+            return Err(DataParsingError::SubscriberNameForbiddenChars);
         }
 
         Ok(ValidName(value.to_owned()))
@@ -131,22 +132,22 @@ impl ValidName {
 // ###################################
 // ->   ERROR
 // ###################################
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Display)]
 pub enum DataParsingError {
+    #[display(fmt = "MISSING SUBSCRIBER NAME")]
     SubscriberNameEmpty,
+    #[display(fmt = "SUBSCRIBER NAME TOO LONG")]
     SubscriberNameTooLong,
-    SubscriberNameForbidden,
+    #[display(fmt = "SUBSCRIBER NAME FORBIDDEN")]
+    SubscriberNameForbiddenChars,
 
+    #[display(fmt = "EMAIL INVALID")]
     EmailInvalid,
+    #[display(fmt = "EMAIL TOO LONG")]
     EmailTooLong,
 
+    #[display(fmt = "INVALID SUBSCRIBER TOKEN: {}", "_0")]
     SubscriberTokenInvalid(String),
-}
-// Error Boilerplate
-impl core::fmt::Display for DataParsingError {
-    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
-        write!(fmt, "{self:?}")
-    }
 }
 
 impl std::error::Error for DataParsingError {}
@@ -158,6 +159,14 @@ impl std::error::Error for DataParsingError {}
 mod test {
     use super::*;
     use claims::{assert_err, assert_ok};
+
+    #[test]
+    fn subscription_token_is_86_chars_long() {
+        for _ in 0..100 {
+            let st = SubscriptionToken::generate();
+            assert_eq!(st.len(), 86)
+        }
+    }
 
     #[test]
     fn name_a_256_grapheme_long_name_is_valid() {

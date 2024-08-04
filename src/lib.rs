@@ -2,12 +2,13 @@ pub mod config;
 pub mod email_client;
 mod error;
 pub mod model;
-pub mod template_manager;
+pub mod templ_manager;
+pub mod utils;
 pub mod web;
 
 use derive_more::Deref;
 use std::{net::SocketAddr, sync::Arc};
-use template_manager::TemplateManager;
+use templ_manager::TemplateManager;
 use tokio::net::TcpListener;
 use tracing::info;
 

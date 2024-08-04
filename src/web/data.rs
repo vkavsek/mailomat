@@ -54,12 +54,9 @@ impl SubscriptionToken {
     {
         let value = value.as_ref();
 
-        if value.graphemes(true).count() != 25 {
-            return Err(DataParsingError::SubTokenWrongLength(value.to_string()));
-        }
-
-        if value.chars().any(|c| !c.is_ascii_alphanumeric()) {
-            return Err(DataParsingError::SubTokenInvalidChars(value.to_string()));
+        if value.graphemes(true).count() != 25 || value.chars().any(|c| !c.is_ascii_alphanumeric())
+        {
+            return Err(DataParsingError::SubscriberTokenInvalid(value.to_string()));
         }
 
         Ok(Self(value.to_string()))
@@ -143,8 +140,7 @@ pub enum DataParsingError {
     EmailInvalid,
     EmailTooLong,
 
-    SubTokenWrongLength(String),
-    SubTokenInvalidChars(String),
+    SubscriberTokenInvalid(String),
 }
 // Error Boilerplate
 impl core::fmt::Display for DataParsingError {

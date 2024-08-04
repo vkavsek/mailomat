@@ -1,3 +1,6 @@
+//! A final info log print.
+//! Currently doesn't have much function.
+//! TODO: DELETE?
 use axum::http::{Method, StatusCode, Uri};
 use serde::Serialize;
 use serde_json::{json, to_value, Value};

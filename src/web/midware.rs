@@ -1,3 +1,5 @@
+//! The middleware implementations
+
 use std::sync::Arc;
 
 use axum::{
@@ -9,6 +11,8 @@ use serde_json::{json, to_value};
 
 use crate::web::{log, Error, Result, REQUEST_ID_HEADER};
 
+/// The response mapper's current main function is to retrieve `web::Error` from response extensions (if it exists),
+/// print it and convert it to `ClientError`, which is then sent back to the user.
 pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Result<Response> {
     // Get UUID from headers stored there by SetRequestIdLayer middleware from tower_http
     let uuid = resp

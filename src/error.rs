@@ -1,6 +1,6 @@
 use derive_more::From;
 
-use crate::{config, email_client, web};
+use crate::{config, email_client, model, web};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -12,17 +12,13 @@ pub enum Error {
     Web(web::Error),
     #[from]
     EmailClient(email_client::Error),
+    #[from]
+    Model(model::Error),
 
     #[from]
     TokioJoin(tokio::task::JoinError),
     #[from]
     Io(std::io::Error),
-    #[from]
-    SqlxMigrate(sqlx::migrate::MigrateError),
-
-    #[from]
-    ModelSqlxTestInit(sqlx::Error),
-    ModelFailToCreatePool(String),
 }
 
 // Error Boilerplate

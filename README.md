@@ -3,7 +3,6 @@ My version of the app built in [Zero To Production In Rust](https://www.zero2pro
 Uses [Axum](https://github.com/tokio-rs/axum) instead of Actix with hosting on [Fly.io](https://fly.io/).
 
 #### TODO: 
-- Validate subscription_tokens.
 - subscription_tokens table reset periodically?
 - What to do if a user didn't get / accidentaly deleted confirmation email. Currently once the user was sent a confirmation email, there is no mechanism for that email to be sent again. We could delete unconfirmed users daily, or send only 2 mails in a span of 24 hours max, or some combination of those options.
 

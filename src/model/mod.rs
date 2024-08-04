@@ -3,7 +3,7 @@ use std::time::Duration;
 use sqlx::{postgres::PgPoolOptions, Connection, PgConnection, PgPool};
 use tracing::info;
 
-use crate::{config::AppConfig, Result};
+use crate::config::AppConfig;
 
 #[derive(Clone, Debug)]
 pub struct ModelManager {
@@ -39,7 +39,7 @@ async fn init_db(config: &AppConfig) -> Result<PgPool> {
         .acquire_timeout(Duration::from_millis(500))
         .connect_with(con_opts)
         .await
-        .map_err(|ex| crate::Error::ModelFailToCreatePool(format!("Standard DB Pool: {}", ex)))?;
+        .map_err(|ex| Error::FailToCreatePool(format!("Standard DB Pool: {}", ex)))?;
 
     Ok(db_pool)
 }
@@ -58,9 +58,31 @@ async fn configure_test_db(config: &AppConfig) -> Result<()> {
         .acquire_timeout(Duration::from_millis(1000))
         .connect_with(db_config.connection_options())
         .await
-        .map_err(|ex| crate::Error::ModelFailToCreatePool(format!("Test Config: {}", ex)))?;
+        .map_err(|ex| Error::FailToCreatePool(format!("Test Config: {}", ex)))?;
     // Migrate DB
     sqlx::migrate!("./migrations").run(&db_pool).await?;
 
     Ok(())
 }
+
+// ###################################
+// ->   ERROR
+// ###################################
+pub type Result<T> = core::result::Result<T, Error>;
+
+#[derive(Debug, derive_more::From)]
+pub enum Error {
+    FailToCreatePool(String),
+    #[from]
+    Sqlx(sqlx::Error),
+    #[from]
+    SqlxMigrate(sqlx::migrate::MigrateError),
+}
+// Error Boilerplate
+impl core::fmt::Display for Error {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
+        write!(fmt, "{self:?}")
+    }
+}
+
+impl std::error::Error for Error {}

@@ -13,7 +13,7 @@ impl TemplateManager {
     pub fn init() -> Self {
         info!(
             "{:<12} - Initializing the Template manager",
-            "TemplateManager::init"
+            "templ manager"
         );
         static TERA: OnceLock<Tera> = OnceLock::new();
         let tera = TERA.get_or_init(|| {

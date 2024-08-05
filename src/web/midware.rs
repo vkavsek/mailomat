@@ -7,7 +7,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use serde_json::{json, to_value};
+use serde_json::json;
 
 use crate::web::{log, Error, Result, REQUEST_ID_HEADER};
 
@@ -24,22 +24,16 @@ pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Re
 
     let web_error = resp.extensions().get::<Arc<Error>>().map(|er| {
         tracing::error!("WEB ERROR: {er}");
+        tracing::error!("WEB ERROR DBG: {er:?}");
         er.as_ref()
     });
     let client_status_and_error = web_error.map(Error::status_code_and_client_error);
 
     let err_resp = client_status_and_error.as_ref().map(|(status, cl_err)| {
-        let client_error = to_value(cl_err).ok();
-        let message = client_error.as_ref().and_then(|v| v.get("message"));
-        let detail = client_error.as_ref().and_then(|v| v.get("detail"));
-
         let client_error_body = json!({
             "error": {
-                "message": message,
-                "data": {
-                    "req_id": uuid.to_string(),
-                    "detail": detail,
-                }
+                "message": cl_err.to_string(),
+                "req_id": uuid.to_string(),
             }
         });
         tracing::error!("CLIENT ERROR: {client_error_body}");

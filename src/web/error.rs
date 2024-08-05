@@ -6,8 +6,6 @@ use serde::Serialize;
 use serde_with::{serde_as, DisplayFromStr};
 use std::sync::Arc;
 use strum_macros::AsRefStr;
-// use derive_more::From;
-// use tracing::debug;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -92,35 +90,3 @@ pub enum ClientError {
     #[display(fmt = "Unauthorized Access")]
     Unauthorized,
 }
-
-// NOTE: OLD ERROR
-// #[serde_as]
-// #[derive(Debug, Serialize, From, AsRefStr)]
-// #[serde(tag = "type", content = "data")]
-// pub enum Error {
-//     UuidNotInHeader,
-//     HeaderToStrFail(String),
-//     Unauthorized,
-//
-//     #[from]
-//     DataParsing(super::data::DataParsingError),
-//     #[from]
-//     EmailClient(crate::email_client::Error),
-//
-//     #[from]
-//     TokioJoin(#[serde_as(as = "DisplayFromStr")] tokio::task::JoinError),
-//     #[from]
-//     Io(#[serde_as(as = "DisplayFromStr")] std::io::Error),
-//     #[from]
-//     Sqlx(#[serde_as(as = "DisplayFromStr")] sqlx::Error),
-//     #[from]
-//     Tera(#[serde_as(as = "DisplayFromStr")] tera::Error),
-// }
-// Error Boilerplate
-// impl core::fmt::Display for Error {
-//     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
-//         write!(fmt, "{self:?}")
-//     }
-// }
-
-// impl std::error::Error for Error {}

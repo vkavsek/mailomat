@@ -13,8 +13,10 @@ fn _init_test_subscriber() {
     static SUBSCRIBER: OnceLock<()> = OnceLock::new();
     SUBSCRIBER.get_or_init(|| {
         tracing_subscriber::fmt()
+            .without_time()
             .with_target(false)
             .with_env_filter(EnvFilter::from_env("TEST_LOG"))
+            .compact()
             .init();
     });
 }

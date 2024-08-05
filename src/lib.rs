@@ -27,6 +27,7 @@ pub fn init_tracing() {
         .without_time()
         .with_target(false)
         .with_env_filter(EnvFilter::from_default_env())
+        .compact()
         .init();
 }
 
@@ -62,7 +63,8 @@ impl App {
 
         let addr = SocketAddr::from((config.net_config.host, config.net_config.app_port));
         let listener = TcpListener::bind(addr).await?;
-        info!("Listening on: {addr}");
+        let addr = listener.local_addr()?;
+        info!("{:<20} - {}", "Listening on:", addr);
 
         let app = App::new(app_state, listener);
         Ok(app)

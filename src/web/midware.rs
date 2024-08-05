@@ -3,7 +3,6 @@
 use std::sync::Arc;
 
 use axum::{
-    http::{Method, Uri},
     response::{IntoResponse, Response},
     Json,
 };
@@ -13,7 +12,7 @@ use crate::web::{Error, Result, REQUEST_ID_HEADER};
 
 /// The response mapper's current main function is to retrieve `web::Error` from response extensions (if it exists),
 /// print it and convert it to `ClientError`, which is then sent back to the user.
-pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Result<Response> {
+pub async fn response_mapper(resp: Response) -> Result<Response> {
     // Get UUID from headers stored there by SetRequestIdLayer middleware from tower_http
     let uuid = resp
         .headers()
@@ -23,11 +22,7 @@ pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Re
         .map_err(|e| Error::HeaderToStrFail(e.to_string()))?;
 
     let web_error = resp.extensions().get::<Arc<Error>>().map(|er| {
-        tracing::error!(
-            "web error: {er}  —  {{  METHOD: {}  —  URI: {}  }}",
-            req_method,
-            uri
-        );
+        tracing::error!("web error: {er}");
         er.as_ref()
     });
     let client_status_and_error = web_error.map(Error::status_code_and_client_error);

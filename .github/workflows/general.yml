@@ -51,7 +51,7 @@ jobs:
       - name: Migrate database
         run: SKIP_DOCKER=true SKIP_DB_RESET=true ./scripts/init_docker_db.sh
       - name: Run tests
-        run: cargo test
+        run: TEST_LOG=info cargo test
 
   fmt:
     name: Rustfmt

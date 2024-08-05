@@ -7,9 +7,9 @@ use axum::{
 };
 use tower::ServiceBuilder;
 use tower_http::{
-    classify::ServerErrorsFailureClass,
+    classify::{ServerErrorsAsFailures, SharedClassifier},
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
-    trace::TraceLayer,
+    trace::{MakeSpan, OnRequest, OnResponse, TraceLayer},
 };
 use tracing::Span;
 
@@ -31,27 +31,7 @@ pub async fn serve(app: App) -> Result<()> {
     } = app;
     let x_request_id: HeaderName = HeaderName::from_static(REQUEST_ID_HEADER);
 
-    let trace_layer = TraceLayer::new_for_http()
-        .make_span_with(|req: &Request<Body>| {
-            let uuid = req
-                .headers()
-                .get(REQUEST_ID_HEADER)
-                .map(|uuid| uuid.to_str().unwrap_or("").to_string());
-
-            tracing::info_span!("req", id = uuid)
-        })
-        .on_response(|res: &Response<Body>, latency: Duration, _s: &Span| {
-            let st_code = res.status();
-            tracing::info!("END in: {:?} STATUS: {st_code}", latency)
-        })
-        .on_request(|req: &Request<Body>, _s: &Span| {
-            tracing::info!("START: {} @ {}", req.method(), req.uri().path(),)
-        })
-        .on_failure(
-            |err: ServerErrorsFailureClass, latency: Duration, _s: &Span| {
-                tracing::error!("ERROR: {err:?} — latency: {:?}", latency)
-            },
-        );
+    let trace_layer = build_trace_layer();
 
     let app = Router::new().merge(routes(app_state)).layer(
         ServiceBuilder::new()
@@ -72,4 +52,37 @@ pub async fn serve(app: App) -> Result<()> {
     axum::serve(listener, app).await?;
 
     Ok(())
+}
+
+/// A helper function that sets up the `tower_http::TraceLayer` - tracing configuration.
+fn build_trace_layer() -> TraceLayer<
+    SharedClassifier<ServerErrorsAsFailures>,
+    impl MakeSpan<Body> + Clone,
+    impl OnRequest<Body> + Clone,
+    impl OnResponse<Body> + Clone,
+> {
+    TraceLayer::new_for_http()
+        .make_span_with(|req: &Request<Body>| {
+            let uuid = req
+                .headers()
+                .get(REQUEST_ID_HEADER)
+                .map(|uuid| uuid.to_str().unwrap_or("").to_string());
+
+            tracing::error_span!(
+                "serve",
+                id = uuid,
+                method = req.method().to_string(),
+                path = req.uri().path()
+            )
+        })
+        .on_request(|req: &Request<Body>, _s: &Span| tracing::info!("START @ {}", req.uri()))
+        .on_response(|res: &Response<Body>, latency: Duration, _s: &Span| {
+            let st_code = res.status().as_u16();
+
+            if (400..=599).contains(&st_code) {
+                tracing::error!("END in: {:?} — STATUS: {st_code}", latency)
+            } else {
+                tracing::info!("END in: {:?} — STATUS: {st_code}", latency)
+            }
+        })
 }

@@ -13,7 +13,7 @@ pub struct ModelManager {
 impl ModelManager {
     pub async fn init(config: &AppConfig) -> Result<Self> {
         let db_pool = init_db(config).await?;
-        info!("{:<12} - Initializing the DB pool", "init_db");
+        info!("{:<20} - Initializing the DB pool", "init_db");
 
         Ok(Self { db: db_pool })
     }

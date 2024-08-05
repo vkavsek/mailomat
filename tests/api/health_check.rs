@@ -22,3 +22,25 @@ async fn healthcheck_ok() -> Result<()> {
 
     Ok(())
 }
+
+#[serial]
+#[tokio::test]
+async fn invalid_path_404() -> Result<()> {
+    let TestApp {
+        addr, http_client, ..
+    } = TestApp::spawn().await?;
+
+    let res = http_client
+        .get(format!("http://{addr}/invalidpath"))
+        .send()
+        .await?;
+
+    assert!(
+        res.status() == StatusCode::NOT_FOUND,
+        "Invalid Path check FAILED!, expected: {}, got: {}",
+        404,
+        res.status().as_u16()
+    );
+
+    Ok(())
+}

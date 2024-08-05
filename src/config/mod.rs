@@ -27,7 +27,7 @@ pub fn get_or_init_config() -> &'static AppConfig {
     static CONFIG_INIT: OnceLock<AppConfig> = OnceLock::new();
     CONFIG_INIT.get_or_init(|| {
         info!(
-            "{:<12} - Initializing the configuration",
+            "{:<20} - Initializing the configuration",
             "get_or_init_config"
         );
         let base_path = std::env::current_dir().expect("Failed to determine the current DIR.");

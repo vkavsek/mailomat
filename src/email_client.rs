@@ -97,20 +97,17 @@ pub struct EmailContent<'a> {
 pub type Result<T> = core::result::Result<T, Error>;
 
 #[serde_as]
-#[derive(Debug, derive_more::From, Serialize)]
+#[derive(Debug, Serialize, thiserror::Error)]
 pub enum Error {
+    #[error("URL parsing error: {0}")]
     UrlParsing(String),
-    #[from]
-    Reqwest(#[serde_as(as = "DisplayFromStr")] reqwest::Error),
+    #[error("HTTP client error: {0}")]
+    Reqwest(
+        #[from]
+        #[serde_as(as = "DisplayFromStr")]
+        reqwest::Error,
+    ),
 }
-// Error Boilerplate
-impl core::fmt::Display for Error {
-    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
-        write!(fmt, "{self:?}")
-    }
-}
-
-impl std::error::Error for Error {}
 
 // ###################################
 // ->   TESTS

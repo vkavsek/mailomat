@@ -23,7 +23,7 @@ pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Re
         .map_err(|e| Error::HeaderToStrFail(e.to_string()))?;
 
     let web_error = resp.extensions().get::<Arc<Error>>().map(|er| {
-        tracing::error!("WEB ERROR: {er:?}");
+        tracing::error!("WEB ERROR: {er}");
         er.as_ref()
     });
     let client_status_and_error = web_error.map(Error::status_code_and_client_error);

@@ -39,6 +39,7 @@ tera = "1"
 # Config
 figment = { version = "0.10", features = ["env", "toml"] }
 # Others
+thiserror = "1"
 secrecy = { version = "0.8", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
 rand = { version = "0.8", features = ["std_rng"] }

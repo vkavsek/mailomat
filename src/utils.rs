@@ -19,15 +19,8 @@ pub fn b64u_decode_to_string(v: &str) -> Result<String> {
 // ###################################
 pub type Result<T> = core::result::Result<T, Error>;
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("Base64-URL decoding error: {0}")]
     B64uDecode(String),
 }
-// Error Boilerplate
-impl core::fmt::Display for Error {
-    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
-        write!(fmt, "{self:?}")
-    }
-}
-
-impl std::error::Error for Error {}

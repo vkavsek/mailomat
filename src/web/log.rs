@@ -24,7 +24,7 @@ pub async fn log_request(
     let uri = uri.to_string();
     let client_error_type = client_status_and_error
         .as_ref()
-        .map(|(_, ce)| ce.as_ref().to_string());
+        .map(|(_, ce)| ce.to_string());
     let status_code = client_status_and_error
         .map(|(sc, _)| sc.to_string())
         .unwrap_or(status_code.to_string());

@@ -1,31 +1,20 @@
-use derive_more::From;
-
 use crate::{config, email_client, model, web};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
-#[derive(Debug, From)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[from]
-    Config(config::ConfigError),
-    #[from]
-    Web(web::Error),
-    #[from]
-    EmailClient(email_client::Error),
-    #[from]
-    Model(model::Error),
+    #[error("Config Error: {0}")]
+    Config(#[from] config::ConfigError),
+    #[error("Web Error: {0}")]
+    Web(#[from] web::Error),
+    #[error("Email Client Error: {0}")]
+    EmailClient(#[from] email_client::Error),
+    #[error("Model Manager Error: {0}")]
+    Model(#[from] model::Error),
 
-    #[from]
-    TokioJoin(tokio::task::JoinError),
-    #[from]
-    Io(std::io::Error),
+    #[error("Tokio Joining Error: {0}")]
+    TokioJoin(#[from] tokio::task::JoinError),
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
 }
-
-// Error Boilerplate
-impl core::fmt::Display for Error {
-    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
-        write!(fmt, "{self:?}")
-    }
-}
-
-impl std::error::Error for Error {}

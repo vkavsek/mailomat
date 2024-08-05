@@ -3,6 +3,7 @@
 //! Gets initialized with `OnceLock` so it only needs to get initialized once.
 
 mod data;
+mod error;
 
 use core::panic;
 use figment::{
@@ -15,7 +16,8 @@ use tracing::info;
 use data::Environment;
 
 // Re-export config structs
-pub use data::{AppConfig, ConfigError, DbConfig, EmailConfig, NetConfig};
+pub use data::{AppConfig, DbConfig, EmailConfig, NetConfig};
+pub use error::{ConfigError, ConfigResult};
 
 /// Allocates a static `OnceLock` containing `AppConfig`.
 /// This ensures configuration only gets initialized the first time we call this function.

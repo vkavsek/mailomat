@@ -1207,6 +1207,7 @@ dependencies = [
  "sqlx",
  "strum_macros",
  "tera",
+ "thiserror",
  "tokio",
  "toml",
  "tower",

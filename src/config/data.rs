@@ -14,6 +14,9 @@ use sqlx::{
 use strum_macros::AsRefStr;
 use toml::Value;
 
+use crate::config::{ConfigError, ConfigResult};
+use crate::web::data::ValidEmail;
+
 // ###################################
 // ->   STRUCTS
 // ###################################
@@ -212,33 +215,6 @@ impl TryFrom<&str> for DbConfig {
         })
     }
 }
-
-// ###################################
-// ->   RESULT & ERROR
-// ###################################
-use derive_more::From;
-
-use crate::web::data::ValidEmail;
-
-pub type ConfigResult<T> = core::result::Result<T, ConfigError>;
-
-#[derive(Debug, From)]
-pub enum ConfigError {
-    StringToEnvironmentFail,
-    StringToDbConfigFail,
-    InvalidEmail(String),
-
-    Io(std::io::Error),
-    TomlDeser(toml::de::Error),
-    TomlSer(toml::ser::Error),
-}
-// Error Boilerplate
-impl core::fmt::Display for ConfigError {
-    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
-        write!(fmt, "{self:?}")
-    }
-}
-impl std::error::Error for ConfigError {}
 
 // ###################################
 // ->   TESTS

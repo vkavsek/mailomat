@@ -70,19 +70,12 @@ async fn configure_test_db(config: &AppConfig) -> Result<()> {
 // ###################################
 pub type Result<T> = core::result::Result<T, Error>;
 
-#[derive(Debug, derive_more::From)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("Failed to create DB pool: {0}")]
     FailToCreatePool(String),
-    #[from]
-    Sqlx(sqlx::Error),
-    #[from]
-    SqlxMigrate(sqlx::migrate::MigrateError),
+    #[error("SQLX error: {0}")]
+    Sqlx(#[from] sqlx::Error),
+    #[error("SQLX migration error: {0}")]
+    SqlxMigrate(#[from] sqlx::migrate::MigrateError),
 }
-// Error Boilerplate
-impl core::fmt::Display for Error {
-    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
-        write!(fmt, "{self:?}")
-    }
-}
-
-impl std::error::Error for Error {}

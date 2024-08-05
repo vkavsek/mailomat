@@ -1,4 +1,4 @@
-use derive_more::{Deref, Display};
+use derive_more::Deref;
 use rand::{thread_rng, RngCore};
 use serde::{Deserialize, Serialize};
 use unicode_segmentation::UnicodeSegmentation;
@@ -132,25 +132,23 @@ impl ValidName {
 // ###################################
 // ->   ERROR
 // ###################################
-#[derive(Debug, Serialize, Display)]
+#[derive(Debug, Serialize, thiserror::Error)]
 pub enum DataParsingError {
-    #[display(fmt = "MISSING SUBSCRIBER NAME")]
+    #[error("Missing subscriber name")]
     SubscriberNameEmpty,
-    #[display(fmt = "SUBSCRIBER NAME TOO LONG")]
+    #[error("Subscriber name too long")]
     SubscriberNameTooLong,
-    #[display(fmt = "SUBSCRIBER NAME FORBIDDEN")]
+    #[error("Subscriber name forbidden")]
     SubscriberNameForbiddenChars,
 
-    #[display(fmt = "EMAIL INVALID")]
+    #[error("Email invalid")]
     EmailInvalid,
-    #[display(fmt = "EMAIL TOO LONG")]
+    #[error("Email too long")]
     EmailTooLong,
 
-    #[display(fmt = "INVALID SUBSCRIBER TOKEN: {}", "_0")]
+    #[error("Invalid subscriber token: {0}")]
     SubscriberTokenInvalid(String),
 }
-
-impl std::error::Error for DataParsingError {}
 
 // ###################################
 // ->   TESTS

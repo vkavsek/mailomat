@@ -1,6 +1,6 @@
-//! Tries to create an `AppConfig` from config files.
-//! Currently uses `AppConfigBuilder` to build up configuration from multiple files.
+//! Creates a `&'static AppConfig` from config files or panics early!
 //! Gets initialized with `OnceLock` so it only needs to get initialized once.
+//! Currently uses `figment` to build up configuration from multiple files and env variables.
 
 mod data;
 mod error;

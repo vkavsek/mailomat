@@ -15,7 +15,7 @@ use tracing::Span;
 
 use crate::App;
 
-use super::{midware, routes, Result, REQUEST_ID_HEADER};
+use super::{midware, routes::routes, Result, REQUEST_ID_HEADER};
 
 /// The core async function returning a future that will serve this application.
 ///

@@ -24,7 +24,7 @@ use crate::{
         subscriber_email = %subscriber.email
     )
 )]
-pub async fn api_subscribe(
+pub async fn subscribe(
     State(app_state): State<AppState>,
     Json(subscriber): Json<DeserSubscriber>,
 ) -> Result<(StatusCode, &'static str)> {

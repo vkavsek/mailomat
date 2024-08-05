@@ -9,7 +9,7 @@ use serde::Deserialize;
 use tracing::info;
 use uuid::Uuid;
 
-use super::{data::SubscriptionToken, Error, Result};
+use crate::web::{data::SubscriptionToken, Error, Result};
 use crate::AppState;
 
 #[derive(Debug, Deserialize, Deref)]

@@ -2,16 +2,20 @@ use std::{net::SocketAddr, sync::OnceLock};
 
 use anyhow::{Context, Result};
 use linkify::LinkKind;
-use mailomat::{config::get_or_init_config, init_tracing, model::ModelManager, App};
+use mailomat::{config::get_or_init_config, model::ModelManager, App};
 use reqwest::Client;
 use serde_json::Value;
+use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
 use wiremock::MockServer;
 
 fn _init_test_subscriber() {
     static SUBSCRIBER: OnceLock<()> = OnceLock::new();
     SUBSCRIBER.get_or_init(|| {
-        init_tracing();
+        tracing_subscriber::fmt()
+            .with_target(false)
+            .with_env_filter(EnvFilter::from_env("TEST_LOG"))
+            .init();
     });
 }
 

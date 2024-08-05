@@ -1,6 +1,6 @@
 use derive_more::Deref;
 use rand::{thread_rng, RngCore};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use unicode_segmentation::UnicodeSegmentation;
 use validator::ValidateEmail;
 
@@ -132,21 +132,21 @@ impl ValidName {
 // ###################################
 // ->   ERROR
 // ###################################
-#[derive(Debug, Serialize, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum DataParsingError {
-    #[error("Missing subscriber name")]
+    #[error("missing subscriber name")]
     SubscriberNameEmpty,
-    #[error("Subscriber name too long")]
+    #[error("subscriber name too long")]
     SubscriberNameTooLong,
-    #[error("Subscriber name forbidden")]
+    #[error("subscriber name forbidden")]
     SubscriberNameForbiddenChars,
 
-    #[error("Email invalid")]
+    #[error("email invalid")]
     EmailInvalid,
-    #[error("Email too long")]
+    #[error("email too long")]
     EmailTooLong,
 
-    #[error("Invalid subscriber token: {0}")]
+    #[error("invalid subscriber token: {0}")]
     SubscriberTokenInvalid(String),
 }
 

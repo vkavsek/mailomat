@@ -9,7 +9,7 @@ use axum::{
 };
 use serde_json::json;
 
-use crate::web::{log, Error, Result, REQUEST_ID_HEADER};
+use crate::web::{Error, Result, REQUEST_ID_HEADER};
 
 /// The response mapper's current main function is to retrieve `web::Error` from response extensions (if it exists),
 /// print it and convert it to `ClientError`, which is then sent back to the user.
@@ -23,8 +23,11 @@ pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Re
         .map_err(|e| Error::HeaderToStrFail(e.to_string()))?;
 
     let web_error = resp.extensions().get::<Arc<Error>>().map(|er| {
-        tracing::error!("WEB ERROR: {er}");
-        tracing::error!("WEB ERROR DBG: {er:?}");
+        tracing::error!(
+            "web error: {er}  —  {{  METHOD: {}  —  URI: {}  }}",
+            req_method,
+            uri
+        );
         er.as_ref()
     });
     let client_status_and_error = web_error.map(Error::status_code_and_client_error);
@@ -36,22 +39,10 @@ pub async fn response_mapper(req_method: Method, uri: Uri, resp: Response) -> Re
                 "req_id": uuid.to_string(),
             }
         });
-        tracing::error!("CLIENT ERROR: {client_error_body}");
+        tracing::error!("client error: {client_error_body}");
 
         (*status, Json(client_error_body)).into_response()
     });
-
-    // TODO: Should this be deleted? Probably...
-    // log_request is currently infallible so we just ignore the resulting Ok(())
-    let _ = log::log_request(
-        uuid,
-        req_method,
-        uri,
-        resp.status(),
-        web_error,
-        client_status_and_error,
-    )
-    .await;
 
     Ok(err_resp.unwrap_or(resp))
 }

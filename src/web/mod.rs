@@ -1,6 +1,5 @@
 pub mod data;
 mod error;
-mod log;
 mod midware;
 mod serve;
 mod subscriptions;

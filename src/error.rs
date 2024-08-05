@@ -4,17 +4,17 @@ pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("Config Error: {0}")]
+    #[error("config error: {0}")]
     Config(#[from] config::ConfigError),
-    #[error("Web Error: {0}")]
+    #[error("web error: {0}")]
     Web(#[from] web::Error),
-    #[error("Email Client Error: {0}")]
+    #[error("email client error: {0}")]
     EmailClient(#[from] email_client::Error),
-    #[error("Model Manager Error: {0}")]
+    #[error("model manager error: {0}")]
     Model(#[from] model::Error),
 
-    #[error("Tokio Joining Error: {0}")]
+    #[error("tokio joining error: {0}")]
     TokioJoin(#[from] tokio::task::JoinError),
-    #[error("IO error: {0}")]
+    #[error("io error: {0}")]
     Io(#[from] std::io::Error),
 }

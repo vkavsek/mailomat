@@ -42,7 +42,7 @@ pub async fn confirm(
     .bind(subscription_token)
     .fetch_optional(db_pool)
     .await?
-    .ok_or_else(|| Error::Unauthorized)?;
+    .ok_or_else(|| Error::SubTokenInDbNotFound)?;
 
     // Update the status of the subscriber - CONFIRM SUBSCRIBER
     sqlx::query(

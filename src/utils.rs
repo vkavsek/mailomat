@@ -42,6 +42,6 @@ pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("Base64-URL decoding error: {0}")]
+    #[error("base64-url decoding error: {0}")]
     B64uDecode(String),
 }

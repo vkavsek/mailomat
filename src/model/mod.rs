@@ -72,10 +72,10 @@ pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("Failed to create DB pool: {0}")]
+    #[error("failed to create db pool: {0}")]
     FailToCreatePool(String),
-    #[error("SQLX error: {0}")]
+    #[error("sqlx error: {0}")]
     Sqlx(#[from] sqlx::Error),
-    #[error("SQLX migration error: {0}")]
+    #[error("sqlx migration error: {0}")]
     SqlxMigrate(#[from] sqlx::migrate::MigrateError),
 }

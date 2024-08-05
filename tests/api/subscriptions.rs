@@ -222,3 +222,20 @@ async fn api_subscribe_sends_a_confirmation_email_with_a_link() -> Result<()> {
 
     Ok(())
 }
+
+#[serial]
+#[tokio::test]
+async fn api_subscribe_fails_if_there_is_a_fatal_db_error() -> Result<()> {
+    let app = TestApp::spawn().await?;
+    let body = json!({
+        "name": "Ursula",
+        "email": "le_guin@gmail.com",
+    });
+    sqlx::query("ALTER TABLE subscriptions DROP COLUMN email")
+        .execute(app.mm.db())
+        .await?;
+    let resp = app.post_subscriptions(&body).await?;
+    assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
+
+    Ok(())
+}

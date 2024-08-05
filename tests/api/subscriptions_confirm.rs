@@ -126,13 +126,12 @@ async fn subscriptions_confirm_correctly_formed_non_existent_token_returns_401()
     let app = TestApp::spawn().await?;
 
     let mut url = Url::parse(&format!("http://{}", app.addr))?;
-
-    let sub_token = SubscriptionToken::generate();
-
     url.set_path("subscriptions/confirm");
-    url.set_query(Some(&format!("subscription_token={}", *sub_token)));
 
     for _ in 0..2 {
+        let sub_token = SubscriptionToken::generate();
+        url.set_query(Some(&format!("subscription_token={}", *sub_token)));
+
         let res = app.http_client.get(url.clone()).send().await?;
         assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
     }

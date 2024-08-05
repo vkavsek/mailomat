@@ -2,54 +2,34 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use serde::Serialize;
-use serde_with::{serde_as, DisplayFromStr};
 use std::sync::Arc;
 use strum_macros::AsRefStr;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
-#[serde_as]
-#[derive(Debug, Serialize, AsRefStr, thiserror::Error)]
-#[serde(tag = "type", content = "data")]
+#[derive(Debug, AsRefStr, thiserror::Error)]
 pub enum Error {
-    #[error("UUID was not in the response header")]
+    #[error("request id was not in the response header: 'x-request-id'")]
     UuidNotInHeader,
-    #[error("Failed to convert header to string. Source {0}")]
+    #[error("failed to convert header to string: {0}")]
     HeaderToStrFail(String),
-    #[error("Unauthorized Access")]
-    Unauthorized,
+    #[error("subscriber token was not found in the database")]
+    SubTokenInDbNotFound,
 
-    #[error("Data Parsing Error: {0}")]
+    #[error("data parsing error: {0}")]
     DataParsing(#[from] super::data::DataParsingError),
 
-    #[error("Email Client Error: {0}")]
+    #[error("email client error: {0}")]
     EmailClient(#[from] crate::email_client::Error),
 
-    #[error("Error awaiting a Tokio task. Src: {0}")]
-    TokioJoin(
-        #[from]
-        #[serde_as(as = "DisplayFromStr")]
-        tokio::task::JoinError,
-    ),
-    #[error("IO error. Src: {0}")]
-    Io(
-        #[from]
-        #[serde_as(as = "DisplayFromStr")]
-        std::io::Error,
-    ),
-    #[error("SQLX error. Src: {0}")]
-    Sqlx(
-        #[from]
-        #[serde_as(as = "DisplayFromStr")]
-        sqlx::Error,
-    ),
-    #[error("Templating error. Src: {0}")]
-    Tera(
-        #[from]
-        #[serde_as(as = "DisplayFromStr")]
-        tera::Error,
-    ),
+    #[error("error awaiting a tokio task: {0}")]
+    TokioJoin(#[from] tokio::task::JoinError),
+    #[error("io error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("sqlx error: {0}")]
+    Sqlx(#[from] sqlx::Error),
+    #[error("templating error: {0}")]
+    Tera(#[from] tera::Error),
 }
 
 impl Error {
@@ -57,7 +37,7 @@ impl Error {
         use ClientError::*;
 
         match self {
-            Error::Unauthorized => (StatusCode::UNAUTHORIZED, Unauthorized),
+            Error::SubTokenInDbNotFound => (StatusCode::UNAUTHORIZED, Unauthorized),
             Error::DataParsing(data_er) => {
                 (StatusCode::BAD_REQUEST, InvalidInput(data_er.to_string()))
             }
@@ -80,8 +60,7 @@ impl IntoResponse for Error {
     }
 }
 
-#[derive(Debug, Serialize, derive_more::Display)]
-#[serde(tag = "message", content = "detail")]
+#[derive(Debug, derive_more::Display)]
 pub enum ClientError {
     #[display(fmt = "Received invalid input: {}", _0)]
     InvalidInput(String),

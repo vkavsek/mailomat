@@ -1,7 +1,6 @@
 use reqwest::Client;
 use secrecy::{ExposeSecret, SecretString};
 use serde::Serialize;
-use serde_with::{serde_as, DisplayFromStr};
 use strum_macros::AsRefStr;
 
 use crate::web::data::ValidEmail;
@@ -96,17 +95,12 @@ pub struct EmailContent<'a> {
 // ###################################
 pub type Result<T> = core::result::Result<T, Error>;
 
-#[serde_as]
-#[derive(Debug, Serialize, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("URL parsing error: {0}")]
+    #[error("url parsing error: {0}")]
     UrlParsing(String),
-    #[error("HTTP client error: {0}")]
-    Reqwest(
-        #[from]
-        #[serde_as(as = "DisplayFromStr")]
-        reqwest::Error,
-    ),
+    #[error("http client error: {0}")]
+    Reqwest(#[from] reqwest::Error),
 }
 
 // ###################################

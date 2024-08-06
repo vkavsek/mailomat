@@ -7,7 +7,7 @@ use wiremock::{
     Mock, ResponseTemplate,
 };
 
-use crate::helpers::{ConfirmationLinks, TestApp};
+use crate::helpers::TestApp;
 
 #[serial]
 #[tokio::test]
@@ -200,25 +200,9 @@ async fn api_subscribe_sends_a_confirmation_email_for_valid_data() -> Result<()>
 #[tokio::test]
 async fn api_subscribe_sends_a_confirmation_email_with_a_link() -> Result<()> {
     let app = TestApp::spawn().await?;
-    let body = json!({
-        "name": "Ursula",
-        "email": "le_guin@gmail.com",
-    });
+    let (links, _) = app.create_unconfirmed_subscriber().await?;
 
-    // Setup the mock server
-    Mock::given(path("/email"))
-        .and(method("POST"))
-        .respond_with(ResponseTemplate::new(200))
-        .mount(&app.email_server)
-        .await;
-
-    app.post_subscriptions(&body).await?;
-
-    // Get the first intercepted request
-    let email_req = &app.email_server.received_requests().await.unwrap()[0];
-    let ConfirmationLinks { html, plain_text } = app.get_confirmation_links(email_req)?;
-
-    assert_eq!(html, plain_text);
+    assert_eq!(links.html, links.plain_text);
 
     Ok(())
 }

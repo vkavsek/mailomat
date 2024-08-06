@@ -55,34 +55,15 @@ async fn subscriptions_confirm_link_returned_by_subscribe_returns_200() -> Resul
 #[tokio::test]
 async fn subscriptions_confirm_successful_confirmation_of_subscription() -> Result<()> {
     let app = TestApp::spawn().await?;
-    let body = json!({
-        "name": "John Doe",
-        "email": "john.doe@example.com"
-    });
-
-    Mock::given(path("/email"))
-        .and(method("POST"))
-        .respond_with(ResponseTemplate::new(200))
-        .mount(&app.email_server)
-        .await;
-
-    app.post_subscriptions(&body).await?;
-    let email_req = &app.email_server.received_requests().await.unwrap()[0];
-    let confirm_link = app.get_confirmation_links(email_req)?;
-
-    app.http_client
-        .get(confirm_link.html)
-        .send()
-        .await?
-        .error_for_status()?;
+    let valid_sub = app.create_confirmed_subscriber().await?;
 
     let (email, name, status): (String, String, String) =
         sqlx::query_as("SELECT email, name, status FROM subscriptions")
             .fetch_one(app.mm.db())
             .await?;
 
-    assert_eq!(email, "john.doe@example.com");
-    assert_eq!(name, "John Doe");
+    assert_eq!(email, valid_sub.email.as_ref());
+    assert_eq!(name, valid_sub.name.as_ref());
     assert_eq!(status, "confirmed");
 
     Ok(())
@@ -92,20 +73,7 @@ async fn subscriptions_confirm_successful_confirmation_of_subscription() -> Resu
 #[tokio::test]
 async fn subscriptions_confirm_duplicated_confirmation_request_returns_200() -> Result<()> {
     let app = TestApp::spawn().await?;
-    let body = json!({
-        "name": "John Doe",
-        "email": "john.doe@example.com"
-    });
-
-    Mock::given(path("/email"))
-        .and(method("POST"))
-        .respond_with(ResponseTemplate::new(200))
-        .mount(&app.email_server)
-        .await;
-
-    app.post_subscriptions(&body).await?;
-    let email_req = &app.email_server.received_requests().await.unwrap()[0];
-    let confirm_link = app.get_confirmation_links(email_req)?;
+    let (confirm_link, _) = app.create_unconfirmed_subscriber().await?;
 
     for _ in 0..2 {
         let res = app
@@ -143,20 +111,7 @@ async fn subscriptions_confirm_correctly_formed_non_existent_token_returns_401()
 #[tokio::test]
 async fn subscriptions_confirm_invalid_sub_token_returns_400() -> Result<()> {
     let app = TestApp::spawn().await?;
-    let body = json!({
-        "name": "John Doe",
-        "email": "john.doe@example.com"
-    });
-
-    Mock::given(path("/email"))
-        .and(method("POST"))
-        .respond_with(ResponseTemplate::new(200))
-        .mount(&app.email_server)
-        .await;
-
-    app.post_subscriptions(&body).await?;
-    let email_req = &app.email_server.received_requests().await.unwrap()[0];
-    let mut confirm_link = app.get_confirmation_links(email_req)?;
+    let (mut confirm_link, _) = app.create_unconfirmed_subscriber().await?;
 
     let original_query = confirm_link.html.query().unwrap().to_owned();
     let query_chars_len = original_query.chars().count();

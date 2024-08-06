@@ -35,8 +35,8 @@ pub async fn confirm(
 
     // Get the subscriber_id record from the database.
     // We also retrieve subscription_token because of the quirks of query_as
-    let (subscriber_id, _): (Uuid, String) = sqlx::query_as(
-        r#"SELECT subscriber_id, subscription_token FROM subscription_tokens
+    let subscriber_id: Uuid = sqlx::query_scalar(
+        r#"SELECT subscriber_id FROM subscription_tokens
     WHERE subscription_token = $1"#,
     )
     .bind(subscription_token)

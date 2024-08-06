@@ -1,15 +1,24 @@
 use std::{net::SocketAddr, sync::OnceLock};
 
 use anyhow::{Context, Result};
+use fake::Fake;
 use linkify::LinkKind;
-use mailomat::{config::get_or_init_config, model::ModelManager, App};
+use mailomat::{
+    config::get_or_init_config,
+    model::ModelManager,
+    web::data::{DeserSubscriber, ValidSubscriber},
+    App,
+};
 use reqwest::Client;
-use serde_json::Value;
+use serde_json::{json, Value};
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
-use wiremock::MockServer;
+use wiremock::{
+    matchers::{method, path},
+    Mock, MockServer, ResponseTemplate,
+};
 
-fn _init_test_subscriber() {
+fn init_test_subscriber() {
     static SUBSCRIBER: OnceLock<()> = OnceLock::new();
     SUBSCRIBER.get_or_init(|| {
         tracing_subscriber::fmt()
@@ -36,7 +45,7 @@ impl TestApp {
     /// A helper function that tries to spawn a separate thread to serve our app
     /// returning the *socket address* on which it is listening.
     pub async fn spawn() -> Result<Self> {
-        _init_test_subscriber();
+        init_test_subscriber();
 
         // A mock server to stand-in for Postmark API
         let email_server = MockServer::start().await;
@@ -82,6 +91,26 @@ impl TestApp {
         Ok(res)
     }
 
+    pub async fn post_api_news(&self) -> Result<reqwest::Response> {
+        // A sketch of the current newsletter payload structure.
+        let newsletter_req_body = json!({
+            "title": "Newsletter title",
+            "content": {
+                "text": "Newsletter body as plain text",
+                "html": "<p>Newsletter body as HTML</p>",
+            }
+        });
+
+        let res = self
+            .http_client
+            .post(&format!("http://{}/api/news", &self.addr))
+            .json(&newsletter_req_body)
+            .send()
+            .await?;
+
+        Ok(res)
+    }
+
     /// Extract confirmation links embedded in the request to the email API.
     pub fn get_confirmation_links(
         &self,
@@ -107,5 +136,54 @@ impl TestApp {
         let html = get_link(body["HtmlBody"].as_str().context("No link in HtmlBody")?)?;
         let plain_text = get_link(body["TextBody"].as_str().context("No link in TextBody")?)?;
         Ok(ConfirmationLinks { html, plain_text })
+    }
+
+    /// Create new subscriber with: NAME - *John Doe*, EMAIL - *john.doe@example.com*
+    /// Returns confirmation links required to confirm this subscriber and the subscriber's info.
+    pub async fn create_unconfirmed_subscriber(
+        &self,
+    ) -> Result<(ConfirmationLinks, ValidSubscriber)> {
+        let name: String = fake::faker::name::en::Name().fake();
+        let email_provider: String = fake::faker::internet::en::FreeEmailProvider().fake();
+        let email = name.to_lowercase().replace(" ", "_") + "@" + &email_provider;
+
+        let body = json!({
+            "name": name,
+            "email": email
+        });
+        let valid_sub = ValidSubscriber::try_from(DeserSubscriber::new(name, email))?;
+
+        let _mock_guard = Mock::given(path("/email"))
+            .and(method("POST"))
+            .respond_with(ResponseTemplate::new(200))
+            .named("Create unconfirmed subscriber")
+            .expect(1)
+            .mount_as_scoped(&self.email_server)
+            .await;
+
+        self.post_subscriptions(&body).await?.error_for_status()?;
+        let email_req = &self
+            .email_server
+            .received_requests()
+            .await
+            .expect("Requests should be received")
+            .pop()
+            .expect("1 request is expected");
+        let links = self.get_confirmation_links(email_req)?;
+
+        Ok((links, valid_sub))
+    }
+
+    /// Create new subscriber with: NAME - *John Doe*, EMAIL - *john.doe@example.com*
+    /// and confirm it. Returns the info of the subscriber that was just added and confirmed.
+    pub async fn create_confirmed_subscriber(&self) -> Result<ValidSubscriber> {
+        let (links, subscriber) = self.create_unconfirmed_subscriber().await?;
+        self.http_client
+            .get(links.html)
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(subscriber)
     }
 }

@@ -8,7 +8,6 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
-    email_client::MessageStream,
     web::{
         data::{DeserSubscriber, SubscriptionToken, ValidSubscriber},
         Result,
@@ -135,12 +134,11 @@ async fn send_confirmation_email(
     )?;
 
     email_client
-        .send_email(
+        .send_single_email(
             &subscriber.email,
             "Welcome to our newsletter!",
             &html_email,
             &plain_email,
-            MessageStream::Outbound,
         )
         .await?;
 

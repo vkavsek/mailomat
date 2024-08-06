@@ -1,3 +1,7 @@
+//! Most of the structs in `web` module and their implementations live here.
+//! Includes structs that need to be validated, their parsing implementations and tests for those
+//! implementations.
+
 use derive_more::Deref;
 use rand::{thread_rng, RngCore};
 use serde::Deserialize;
@@ -9,16 +13,29 @@ use crate::utils;
 // ###################################
 // ->   STRUCTS
 // ###################################
+/// A deserializable struct that contains the data of the newsletter to be sent to the subscribers
+#[derive(Debug, Deserialize)]
+pub struct News {
+    pub title: String,
+    pub content: NewsContent,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NewsContent {
+    pub text: String,
+    pub html: String,
+}
+
 /// Deserializable Subscriber
-/// A Subscriber that can be Deserialized but can have invalid fields.
-#[derive(Deserialize, Debug)]
+/// A Subscriber that can be Deserialized but can have invalid fields
+#[derive(Debug, Deserialize)]
 pub struct DeserSubscriber {
     pub name: String,
     pub email: String,
 }
 
 /// Validated Subscriber
-/// A Subscriber with all the fields validated.
+/// A Subscriber with all the fields validated
 #[derive(Debug, Clone)]
 pub struct ValidSubscriber {
     pub email: ValidEmail,
@@ -33,15 +50,15 @@ pub struct ValidEmail(String);
 #[derive(Debug, Clone)]
 pub struct ValidName(String);
 
-/// A random 86 character-long case-sensitive Base64-URL encoded subscription token.
-#[derive(Deref)]
+/// A random 86 character-long case-sensitive Base64-URL encoded subscription token
+#[derive(Debug, Deref)]
 pub struct SubscriptionToken(String);
 
 // ###################################
 // ->   IMPLS
 // ###################################
 impl SubscriptionToken {
-    /// Generates an array of 64 random bytes and encodes it to Base64-URL without padding.
+    /// Generates an array of 64 random bytes and encodes it to Base64-URL without padding
     pub fn generate() -> Self {
         let mut rand_bytes = [0u8; 64];
         thread_rng().fill_bytes(&mut rand_bytes);
@@ -72,6 +89,12 @@ impl TryFrom<DeserSubscriber> for ValidSubscriber {
             email: ValidEmail::parse(deser_sub.email)?,
             name: ValidName::parse(deser_sub.name)?,
         })
+    }
+}
+
+impl DeserSubscriber {
+    pub fn new(name: String, email: String) -> Self {
+        Self { name, email }
     }
 }
 

@@ -41,21 +41,18 @@ impl EmailClient {
         })
     }
 
-    pub async fn send_email<S>(
+    pub async fn send_single_email<S>(
         &self,
         recepient: &ValidEmail,
         subject: S,
         html_content: S,
         text_content: S,
-        message_stream: MessageStream,
     ) -> Result<()>
     where
         S: AsRef<str>,
     {
-        let url = self
-            .url
-            .join("email")
-            .map_err(|e| Error::UrlParsing(e.to_string()))?;
+        let mut url = self.url.clone();
+        url.set_path("email");
 
         let email_content = EmailContent {
             from: self.sender.as_ref(),
@@ -63,12 +60,53 @@ impl EmailClient {
             subject: subject.as_ref(),
             html_body: html_content.as_ref(),
             text_body: text_content.as_ref(),
-            message_stream: message_stream.as_ref(),
+            message_stream: MessageStream::Outbound.as_ref(),
         };
 
         let _resp = self
             .http_client
             .post(url)
+            .header("X-Postmark-Server-Token", self.auth_token.expose_secret())
+            .json(&email_content)
+            .send()
+            .await?
+            .error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn send_batch_email<S>(
+        &self,
+        recepients: &[ValidEmail],
+        subject: S,
+        html_content: S,
+        text_content: S,
+    ) -> Result<()>
+    where
+        S: AsRef<str>,
+    {
+        if recepients.is_empty() {
+            return Err(Error::EmptyRecepients);
+        }
+
+        let mut url = self.url.clone();
+        url.set_path("email/batch");
+
+        let email_content = recepients
+            .iter()
+            .map(|recepient| EmailContent {
+                from: self.sender.as_ref(),
+                to: recepient.as_ref(),
+                subject: subject.as_ref(),
+                html_body: html_content.as_ref(),
+                text_body: text_content.as_ref(),
+                message_stream: MessageStream::Broadcast.as_ref(),
+            })
+            .collect::<Vec<_>>();
+
+        let _resp = self
+            .http_client
+            .post(url.clone())
             .header("X-Postmark-Server-Token", self.auth_token.expose_secret())
             .json(&email_content)
             .send()
@@ -97,6 +135,8 @@ pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("trying to send batch email without recepients")]
+    EmptyRecepients,
     #[error("url parsing error: {0}")]
     UrlParsing(String),
     #[error("http client error: {0}")]
@@ -180,13 +220,7 @@ mod tests {
             .await;
 
         email_client
-            .send_email(
-                &email()?,
-                &subject(),
-                &content(),
-                &content(),
-                MessageStream::Outbound,
-            )
+            .send_single_email(&email()?, &subject(), &content(), &content())
             .await?;
 
         Ok(())
@@ -204,13 +238,7 @@ mod tests {
             .await;
 
         let out = email_client
-            .send_email(
-                &email()?,
-                &subject(),
-                &content(),
-                &content(),
-                MessageStream::Outbound,
-            )
+            .send_single_email(&email()?, &subject(), &content(), &content())
             .await;
 
         assert_err!(out);
@@ -232,13 +260,7 @@ mod tests {
             .await;
 
         let out = email_client
-            .send_email(
-                &email()?,
-                &subject(),
-                &content(),
-                &content(),
-                MessageStream::Outbound,
-            )
+            .send_single_email(&email()?, &subject(), &content(), &content())
             .await;
 
         assert_err!(out);

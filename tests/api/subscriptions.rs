@@ -61,7 +61,7 @@ async fn api_subscribe_persists_the_new_subscriber() -> Result<()> {
 
     let (email, name, status): (String, String, String) =
         sqlx::query_as("SELECT email, name, status FROM subscriptions")
-            .fetch_one(app.mm.db())
+            .fetch_one(app.dm.db())
             .await?;
 
     assert_eq!(email, "john.doe@example.com");
@@ -216,7 +216,7 @@ async fn api_subscribe_fails_if_there_is_a_fatal_db_error() -> Result<()> {
         "email": "le_guin@gmail.com",
     });
     sqlx::query("ALTER TABLE subscriptions DROP COLUMN email")
-        .execute(app.mm.db())
+        .execute(app.dm.db())
         .await?;
     let resp = app.post_subscriptions(&body).await?;
     assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);

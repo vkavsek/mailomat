@@ -1,6 +1,7 @@
 use axum::{extract::State, http::HeaderMap, Json};
 
 use crate::{
+    database::DbManager,
     utils::b64_decode_to_string,
     web::{
         data::{Credentials, News, ValidEmail},
@@ -31,7 +32,7 @@ pub async fn news(
         r#"SELECT email FROM subscriptions
     WHERE status = 'confirmed' "#,
     )
-    .fetch_all(app_state.model_mgr.db())
+    .fetch_all(app_state.database_mgr.db())
     .await
     .map_err(NewsError::Sqlx)?;
 
@@ -69,6 +70,8 @@ pub async fn news(
 
     Ok(())
 }
+
+async fn validate_credentials(credentials: Credentials, dm: DbManager) {}
 
 fn basic_auth(headers: HeaderMap) -> core::result::Result<Credentials, AuthError> {
     let header_val = headers

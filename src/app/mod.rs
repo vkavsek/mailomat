@@ -8,7 +8,7 @@ use tokio::net::TcpListener;
 use tracing::info;
 
 use crate::{
-    config::AppConfig, model::ModelManager, templ_manager::TemplateManager, EmailClient, Result,
+    config::AppConfig, database::DbManager, templ_manager::TemplateManager, EmailClient, Result,
 };
 
 // ###################################
@@ -37,9 +37,9 @@ impl App {
         )?;
         let tm = TemplateManager::init();
 
-        let mm = ModelManager::init(config).await?;
+        let dm = DbManager::init(config).await?;
         let base_url = config.net_config.base_url.clone();
-        let app_state = AppState::new(mm, tm, email_client, base_url);
+        let app_state = AppState::new(dm, tm, email_client, base_url);
 
         let addr = SocketAddr::from((config.net_config.host, config.net_config.app_port));
         let listener = TcpListener::bind(addr).await?;
@@ -52,7 +52,7 @@ impl App {
 }
 
 pub struct InternalState {
-    pub model_mgr: ModelManager,
+    pub database_mgr: DbManager,
     pub templ_mgr: TemplateManager,
     pub email_client: EmailClient,
     pub base_url: String,
@@ -66,14 +66,14 @@ pub struct AppState(Arc<InternalState>);
 
 impl AppState {
     pub fn new(
-        model_mgr: ModelManager,
+        database_mgr: DbManager,
         templ_mgr: TemplateManager,
         email_client: EmailClient,
         base_url: String,
     ) -> Self {
         AppState(Arc::new(InternalState {
             templ_mgr,
-            model_mgr,
+            database_mgr,
             email_client,
             base_url,
         }))

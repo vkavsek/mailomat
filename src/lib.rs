@@ -1,8 +1,8 @@
 mod app;
 pub mod config;
+pub mod database;
 pub mod email_client;
 mod error;
-pub mod model;
 pub mod templ_manager;
 pub mod utils;
 pub mod web;

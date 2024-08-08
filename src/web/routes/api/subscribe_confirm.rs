@@ -41,7 +41,7 @@ pub async fn subscribe_confirm(
     State(app_state): State<AppState>,
     Query(subscription_token): Query<SubscribeConfirmQuery>,
 ) -> WebResult<StatusCode> {
-    let db_pool = app_state.model_mgr.db();
+    let db_pool = app_state.database_mgr.db();
     // Parse subscription token
     let subscription_token =
         tokio::task::spawn_blocking(move || SubscriptionToken::parse(subscription_token.deref()))

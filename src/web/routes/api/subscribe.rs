@@ -65,7 +65,7 @@ pub async fn subscribe(
     );
 
     // BEGIN sql transaction
-    let mut transaction = app_state.model_mgr.db().begin().await?;
+    let mut transaction = app_state.database_mgr.db().begin().await?;
     let (subscriber_id, was_subscribed) =
         insert_subscriber(&mut transaction, subscriber.clone()).await?;
     // If the user was already subscribed we want to rollback the changes and fail silently.

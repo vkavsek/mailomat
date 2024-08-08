@@ -5,8 +5,7 @@ use fake::Fake;
 use linkify::LinkKind;
 use mailomat::{
     config::get_or_init_config,
-    model::ModelManager,
-    utils::b64_encode,
+    database::DbManager,
     web::data::{DeserSubscriber, ValidSubscriber},
     App,
 };
@@ -39,7 +38,7 @@ pub struct ConfirmationLinks {
 pub struct TestApp {
     pub http_client: Client,
     pub addr: SocketAddr,
-    pub mm: ModelManager,
+    pub dm: DbManager,
     pub email_server: MockServer,
 }
 impl TestApp {
@@ -63,12 +62,12 @@ impl TestApp {
         };
 
         // Create and migrate the test DB
-        ModelManager::configure_for_test(&config).await?;
+        DbManager::configure_for_test(&config).await?;
 
         let app = App::build_from_config(&config).await?;
 
         let addr = app.listener.local_addr()?;
-        let mm = app.app_state.model_mgr.clone();
+        let mm = app.app_state.database_mgr.clone();
         let http_client = Client::new();
 
         tokio::spawn(mailomat::serve(app));
@@ -76,7 +75,7 @@ impl TestApp {
         Ok(TestApp {
             http_client,
             addr,
-            mm,
+            dm: mm,
             email_server,
         })
     }
@@ -122,13 +121,10 @@ impl TestApp {
             }
         });
 
-        let creds = "admin:password";
-        let b64_enc = b64_encode(creds);
-
         let res = self
             .http_client
             .post(&format!("http://{}/api/news", &self.addr))
-            .header(reqwest::header::AUTHORIZATION, format!("Basic {b64_enc}"))
+            .basic_auth("admin", Some("password"))
             .json(&newsletter_req_body)
             .send()
             .await?;

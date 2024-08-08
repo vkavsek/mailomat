@@ -1,4 +1,4 @@
-use crate::{app, config, email_client, model, web};
+use crate::{app, config, database, email_client, web};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -10,8 +10,8 @@ pub enum Error {
     Web(#[from] web::Error),
     #[error("email client error: {0}")]
     EmailClient(#[from] email_client::Error),
-    #[error("model manager error: {0}")]
-    Model(#[from] model::Error),
+    #[error("database manager error: {0}")]
+    Database(#[from] database::Error),
     #[error("serving error: {0}")]
     Serve(#[from] app::serve::ServeError),
 

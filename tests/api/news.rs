@@ -40,7 +40,7 @@ async fn api_news_subscribers_with_invalid_emails_dont_get_news() -> Result<()> 
     .bind("invalid_email")
     .bind("Invalid Email")
     .bind(Utc::now())
-    .execute(app.mm.db())
+    .execute(app.dm.db())
     .await?;
 
     Mock::given(any())

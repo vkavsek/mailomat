@@ -6,11 +6,11 @@ use tracing::info;
 use crate::config::AppConfig;
 
 #[derive(Clone, Debug)]
-pub struct ModelManager {
+pub struct DbManager {
     db: PgPool,
 }
 
-impl ModelManager {
+impl DbManager {
     pub async fn init(config: &AppConfig) -> Result<Self> {
         let db_pool = init_db(config).await?;
         info!("{:<20} - Initializing the DB pool", "init_db");

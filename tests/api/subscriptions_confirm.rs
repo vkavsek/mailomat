@@ -59,7 +59,7 @@ async fn subscriptions_confirm_successful_confirmation_of_subscription() -> Resu
 
     let (email, name, status): (String, String, String) =
         sqlx::query_as("SELECT email, name, status FROM subscriptions")
-            .fetch_one(app.mm.db())
+            .fetch_one(app.dm.db())
             .await?;
 
     assert_eq!(email, valid_sub.email.as_ref());

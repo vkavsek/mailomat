@@ -1,10 +1,9 @@
+pub mod auth;
 pub mod data;
 mod error;
-mod midware;
+pub mod midware;
 pub mod routes;
-mod serve;
 
-pub use error::{Error, Result};
-pub use serve::serve;
+pub use error::{Error, WebResult};
 
-const REQUEST_ID_HEADER: &str = "x-request-id";
+pub const REQUEST_ID_HEADER: &str = "x-request-id";

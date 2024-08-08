@@ -1,3 +1,7 @@
+//! `web::Error` is the only error that implements IntoResponse.
+//! All the other errors that can happen when dealing with requests and responses
+//! bubble up to this error.
+
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
@@ -5,50 +9,52 @@ use axum::{
 use std::sync::Arc;
 use strum_macros::AsRefStr;
 
-pub type Result<T> = core::result::Result<T, Error>;
+use super::*;
+
+pub type WebResult<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, AsRefStr, thiserror::Error)]
 pub enum Error {
-    #[error("request id was not in the response header: 'x-request-id'")]
-    UuidNotInHeader,
-    #[error("failed to convert header to string: {0}")]
-    HeaderToStrFail(String),
-    #[error("subscriber token was not found in the database")]
-    SubTokenInDbNotFound,
+    #[error("response mapper error: {0}")]
+    ResponseMapper(#[from] midware::RespMapError),
+    #[error("routes error: {0}")]
+    News(#[from] routes::api::news::NewsError),
+    #[error("routes error: {0}")]
+    Subscribe(#[from] routes::api::subscribe::SubscribeError),
+    #[error("routes error: {0}")]
+    SubscribeConfirm(#[from] routes::api::subscribe_confirm::SubscribeConfirmError),
 
-    #[error("data parsing error: {0}")]
-    DataParsing(#[from] super::data::DataParsingError),
-
-    #[error("email client error: {0}")]
-    EmailClient(#[from] crate::email_client::Error),
-
-    #[error("error awaiting a tokio task: {0}")]
-    TokioJoin(#[from] tokio::task::JoinError),
-    #[error("io error: {0}")]
-    Io(#[from] std::io::Error),
     #[error("sqlx error: {0}")]
     Sqlx(#[from] sqlx::Error),
-    #[error("templating error: {0}")]
-    Tera(#[from] tera::Error),
 }
 
 impl Error {
     pub fn status_code_and_client_error(&self) -> (StatusCode, ClientError) {
-        use ClientError::*;
+        use routes::api::{
+            news::NewsError, subscribe::SubscribeError, subscribe_confirm::SubscribeConfirmError,
+        };
+        use Error::*;
 
         match self {
-            Error::SubTokenInDbNotFound => (StatusCode::UNAUTHORIZED, Unauthorized),
-            Error::DataParsing(data_er) => {
-                (StatusCode::BAD_REQUEST, InvalidInput(data_er.to_string()))
+            News(NewsError::Auth(_))
+            | SubscribeConfirm(SubscribeConfirmError::SubTokenInDbNotFound) => {
+                (StatusCode::UNAUTHORIZED, ClientError::Unauthorized)
             }
-            _ => (StatusCode::INTERNAL_SERVER_ERROR, ServiceError),
+            Subscribe(SubscribeError::ValidSubscriberParse(er))
+            | SubscribeConfirm(SubscribeConfirmError::DataParsing(er)) => (
+                StatusCode::BAD_REQUEST,
+                ClientError::InvalidInput(er.to_string()),
+            ),
+            //  => {
+            // }
+            _ => (StatusCode::INTERNAL_SERVER_ERROR, ClientError::ServiceError),
         }
     }
 }
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
-        tracing::debug!("{:<12} - into_response(Error: {self:?})", "INTO_RESP");
+        tracing::debug!("{:<12} - into_response(web::Error: {self:?})", "INTO_RESP");
 
         // Construct a response
         let mut res = StatusCode::INTERNAL_SERVER_ERROR.into_response();

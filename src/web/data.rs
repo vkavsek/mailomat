@@ -1,9 +1,9 @@
 //! Most of the structs in `web` module and their implementations live here.
 //! Includes structs that need to be validated, their parsing implementations and tests for those
-//! implementations.
 
 use derive_more::Deref;
 use rand::{thread_rng, RngCore};
+use secrecy::SecretString;
 use serde::Deserialize;
 use unicode_segmentation::UnicodeSegmentation;
 use validator::ValidateEmail;
@@ -13,17 +13,29 @@ use crate::utils;
 // ###################################
 // ->   STRUCTS
 // ###################################
+#[derive(Debug)]
+pub struct Credentials {
+    username: String,
+    password: SecretString,
+}
+
 /// A deserializable struct that contains the data of the newsletter to be sent to the subscribers
 #[derive(Debug, Deserialize)]
 pub struct News {
     pub title: String,
     pub content: NewsContent,
 }
-
+/// A deserializable struct that contains the content of the newsletter to be sent to the subscribers
 #[derive(Debug, Deserialize)]
 pub struct NewsContent {
     pub text: String,
     pub html: String,
+}
+
+/// A deserializable struct that contains the `subscription_token` to be deserialized from the query
+#[derive(Debug, Deserialize, Deref)]
+pub struct SubscribeConfirmQuery {
+    pub subscription_token: String,
 }
 
 /// Deserializable Subscriber
@@ -57,6 +69,17 @@ pub struct SubscriptionToken(String);
 // ###################################
 // ->   IMPLS
 // ###################################
+impl Credentials {
+    pub fn new(username: String, password: SecretString) -> Self {
+        Credentials { username, password }
+    }
+    pub fn username(&self) -> &str {
+        &self.username
+    }
+    pub fn password(&self) -> &SecretString {
+        &self.password
+    }
+}
 impl SubscriptionToken {
     /// Generates an array of 64 random bytes and encodes it to Base64-URL without padding
     pub fn generate() -> Self {

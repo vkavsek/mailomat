@@ -75,7 +75,7 @@ impl EmailClient {
         Ok(())
     }
 
-    pub async fn send_batch_email<S>(
+    pub async fn send_batch_emails<S>(
         &self,
         recepients: &[ValidEmail],
         subject: S,

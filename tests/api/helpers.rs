@@ -6,6 +6,7 @@ use linkify::LinkKind;
 use mailomat::{
     config::get_or_init_config,
     model::ModelManager,
+    utils::b64_encode,
     web::data::{DeserSubscriber, ValidSubscriber},
     App,
 };
@@ -91,7 +92,7 @@ impl TestApp {
         Ok(res)
     }
 
-    pub async fn post_api_news(&self) -> Result<reqwest::Response> {
+    pub async fn post_unauthorized_api_news(&self) -> Result<reqwest::Response> {
         // A sketch of the current newsletter payload structure.
         let newsletter_req_body = json!({
             "title": "Newsletter title",
@@ -104,6 +105,30 @@ impl TestApp {
         let res = self
             .http_client
             .post(&format!("http://{}/api/news", &self.addr))
+            .json(&newsletter_req_body)
+            .send()
+            .await?;
+
+        Ok(res)
+    }
+
+    pub async fn post_api_news(&self) -> Result<reqwest::Response> {
+        // A sketch of the current newsletter payload structure.
+        let newsletter_req_body = json!({
+            "title": "Newsletter title",
+            "content": {
+                "text": "Newsletter body as plain text",
+                "html": "<p>Newsletter body as HTML</p>",
+            }
+        });
+
+        let creds = "admin:password";
+        let b64_enc = b64_encode(creds);
+
+        let res = self
+            .http_client
+            .post(&format!("http://{}/api/news", &self.addr))
+            .header(reqwest::header::AUTHORIZATION, format!("Basic {b64_enc}"))
             .json(&newsletter_req_body)
             .send()
             .await?;
@@ -127,7 +152,7 @@ impl TestApp {
 
             let raw_link = links[0].as_str().to_owned();
             let mut confirm_link = reqwest::Url::parse(&raw_link)?;
-            // Check that we don't call random API's on the web.
+            // Check that we don''s on the web.
             assert_eq!(confirm_link.host_str(), Some("127.0.0.1"));
             confirm_link.set_port(Some(self.addr.port())).unwrap();
             Ok::<reqwest::Url, anyhow::Error>(confirm_link)

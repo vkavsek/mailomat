@@ -23,6 +23,39 @@ async fn api_news_not_delivered_to_unconfirmed_subscribers() -> Result<()> {
 }
 
 #[tokio::test]
+async fn api_news_subscribers_with_invalid_emails_dont_get_news() -> Result<()> {
+    use chrono::Utc;
+    use uuid::Uuid;
+
+    let app = TestApp::spawn().await?;
+    let subscriber_id = Uuid::new_v4();
+
+    sqlx::query(
+        r#"
+        INSERT INTO subscriptions (id, email, name, subscribed_at, status)
+        VALUES ($1, $2, $3, $4, 'confirmed')
+    "#,
+    )
+    .bind(subscriber_id)
+    .bind("invalid_email")
+    .bind("Invalid Email")
+    .bind(Utc::now())
+    .execute(app.mm.db())
+    .await?;
+
+    Mock::given(any())
+        .respond_with(ResponseTemplate::new(200))
+        .expect(0)
+        .mount(&app.email_server)
+        .await;
+
+    let resp = app.post_api_news().await?.error_for_status()?;
+    assert_eq!(resp.status().as_u16(), 200);
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn api_news_delivered_to_confirmed_subscriber() -> Result<()> {
     let app = TestApp::spawn().await?;
     app.create_confirmed_subscriber().await?;
@@ -77,7 +110,19 @@ async fn api_news_invalid_data_422() -> Result<()> {
 
     Ok(())
 }
-//
+
+#[tokio::test]
+async fn api_news_requests_missing_authorization_are_rejected() -> Result<()> {
+    let app = TestApp::spawn().await?;
+    let resp = app.post_unauthorized_api_news().await?;
+    assert_eq!(resp.status().as_u16(), 401);
+    assert_eq!(
+        resp.headers()["WWW-Authenticate"],
+        r#"Basic realm="publish""#
+    );
+    Ok(())
+}
+
 // #[tokio::test]
 // async fn api_news_delivered_to_all_confirmed_subscribers() -> Result<()> {
 //     let app = TestApp::spawn().await?;

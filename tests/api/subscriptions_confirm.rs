@@ -17,7 +17,7 @@ async fn subscriptions_confirm_without_token_rejected_with_400() -> Result<()> {
 
     let res = app
         .http_client
-        .get(&format!("http://{}/subscriptions/confirm", app.addr))
+        .get(&format!("http://{}/api/subscribe/confirm", app.addr))
         .send()
         .await?;
 
@@ -94,7 +94,7 @@ async fn subscriptions_confirm_correctly_formed_non_existent_token_returns_401()
     let app = TestApp::spawn().await?;
 
     let mut url = Url::parse(&format!("http://{}", app.addr))?;
-    url.set_path("subscriptions/confirm");
+    url.set_path("api/subscribe/confirm");
 
     for _ in 0..2 {
         let sub_token = SubscriptionToken::generate();

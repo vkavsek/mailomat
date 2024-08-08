@@ -15,7 +15,18 @@ use tracing::Span;
 
 use crate::App;
 
-use super::{midware, routes::routes, Result, REQUEST_ID_HEADER};
+use crate::web::{midware, routes::routes, REQUEST_ID_HEADER};
+
+// ###################################
+// ->   ERROR
+// ###################################
+pub type Result<T> = core::result::Result<T, ServeError>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum ServeError {
+    #[error("io error: {0}")]
+    Io(#[from] std::io::Error),
+}
 
 /// The core async function returning a future that will serve this application.
 ///

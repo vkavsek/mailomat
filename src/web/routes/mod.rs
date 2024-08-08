@@ -1,6 +1,4 @@
-mod api_news;
-mod api_subscribe;
-mod subscriptions_confirm;
+pub mod api;
 
 use axum::{
     http::StatusCode,
@@ -18,21 +16,21 @@ async fn health_check() -> StatusCode {
 pub fn routes(app_state: AppState) -> Router {
     Router::new()
         .nest("/api", api_routes(app_state.clone()))
-        .nest("/subscriptions", subscriptions_routes(app_state))
         .route("/health-check", get(health_check))
 }
 
 /// API - Routes nested under "/api" path
 fn api_routes(app_state: AppState) -> Router {
     Router::new()
-        .route("/subscribe", post(api_subscribe::subscribe))
-        .route("/news", post(api_news::news))
-        .with_state(app_state)
+        .route("/news", post(api::news))
+        .with_state(app_state.clone())
+        .nest("/subscribe", subscribe_routes(app_state))
 }
 
-/// SUBSCRIPTIONS - Routes nested under "/subscriptions" path
-fn subscriptions_routes(app_state: AppState) -> Router {
+/// SUBSCRIBE - Routes nested under "/subscribe" path
+fn subscribe_routes(app_state: AppState) -> Router {
     Router::new()
-        .route("/confirm", get(subscriptions_confirm::confirm))
+        .route("/", post(api::subscribe))
+        .route("/confirm", get(api::subscribe_confirm))
         .with_state(app_state)
 }

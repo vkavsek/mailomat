@@ -1,3 +1,5 @@
+//! Implementation for "api/subscribe"
+
 use std::ops::Deref;
 
 use axum::{extract::State, http::StatusCode, Json};
@@ -9,12 +11,36 @@ use uuid::Uuid;
 
 use crate::{
     web::{
+        self,
         data::{DeserSubscriber, SubscriptionToken, ValidSubscriber},
-        Result,
+        WebResult,
     },
     AppState,
 };
 
+// ###################################
+// ->   ERROR
+// ###################################
+#[derive(Debug, thiserror::Error)]
+pub enum SubscribeError {
+    #[error("data parsing error: {0}")]
+    ValidSubscriberParse(#[from] web::data::DataParsingError),
+
+    #[error("error sending confirmation email: {0}")]
+    ConfirmationEmail(#[from] crate::email_client::Error),
+
+    #[error("error inserting to database: {0}")]
+    Insert(#[from] sqlx::Error),
+
+    #[error("error awaiting a blocking tokio task: {0}")]
+    BlockingTask(#[from] tokio::task::JoinError),
+    #[error("email templating error: {0}")]
+    Tera(#[from] tera::Error),
+}
+
+// ###################################
+// ->   API
+// ###################################
 #[tracing::instrument(
     name = "Saving new subscriber to the database",
     skip(app_state, subscriber),
@@ -26,12 +52,13 @@ use crate::{
 pub async fn subscribe(
     State(app_state): State<AppState>,
     Json(subscriber): Json<DeserSubscriber>,
-) -> Result<(StatusCode, &'static str)> {
+) -> WebResult<(StatusCode, &'static str)> {
     // Spawn a blocking task to validate the subscriber info and generate subscription token.
     let (subscriber, subscription_token) =
         tokio::task::spawn_blocking(move || (subscriber.try_into(), SubscriptionToken::generate()))
-            .await?;
-    let subscriber: ValidSubscriber = subscriber?;
+            .await
+            .map_err(SubscribeError::BlockingTask)?;
+    let subscriber: ValidSubscriber = subscriber.map_err(SubscribeError::ValidSubscriberParse)?;
     let standard_response = (
         StatusCode::OK,
         "If this email is not already subscribed, you will receive a confirmation email shortly.",
@@ -61,7 +88,7 @@ pub async fn subscribe(
 async fn insert_subscriber(
     transaction: &mut Transaction<'_, Postgres>,
     subscriber: ValidSubscriber,
-) -> Result<(Uuid, bool)> {
+) -> WebResult<(Uuid, bool)> {
     let subscriber_id = Uuid::new_v4();
 
     let query = sqlx::query(
@@ -79,7 +106,7 @@ async fn insert_subscriber(
     // If they are we don't want to let them know, instead we tell them that if they
     // are not already subscribed they will receive a confirmation email.
     let query_result = transaction.execute(query).await;
-    let was_subscribed = was_user_subscribed(query_result)?;
+    let was_subscribed = was_user_subscribed(query_result).map_err(SubscribeError::Insert)?;
 
     Ok((subscriber_id, was_subscribed))
 }
@@ -88,7 +115,7 @@ async fn insert_subscription_token(
     transaction: &mut Transaction<'_, Postgres>,
     subscription_token: &SubscriptionToken,
     subscriber_id: Uuid,
-) -> Result<()> {
+) -> WebResult<()> {
     let subscription_token = subscription_token.deref();
     let query = sqlx::query(
         r#"INSERT INTO subscription_tokens(subscription_token, subscriber_id)
@@ -97,7 +124,10 @@ async fn insert_subscription_token(
     .bind(subscription_token)
     .bind(subscriber_id);
 
-    transaction.execute(query).await?;
+    transaction
+        .execute(query)
+        .await
+        .map_err(SubscribeError::Insert)?;
 
     Ok(())
 }
@@ -110,14 +140,14 @@ async fn send_confirmation_email(
     app_state: AppState,
     subscriber: &ValidSubscriber,
     subscription_token: &SubscriptionToken,
-) -> Result<()> {
+) -> WebResult<()> {
     let subscription_token = subscription_token.deref();
     let email_client = &app_state.email_client;
     let base_url = &app_state.base_url;
     let tera = app_state.templ_mgr.tera();
 
     let confirmation_link =
-        format!("{base_url}/subscriptions/confirm?subscription_token={subscription_token}",);
+        format!("{base_url}/api/subscribe/confirm?subscription_token={subscription_token}",);
 
     // I think blocking here shouldn't matter much
     let html_email = render_confirmation_email_from_template(
@@ -140,7 +170,8 @@ async fn send_confirmation_email(
             &html_email,
             &plain_email,
         )
-        .await?;
+        .await
+        .map_err(SubscribeError::ConfirmationEmail)?;
 
     info!("SUCCESS");
     Ok(())
@@ -156,7 +187,7 @@ async fn send_confirmation_email(
 /// the user was already subscribed (true), or we got an `Ok` because the user was just subscribed (false).
 fn was_user_subscribed(
     query_result: std::result::Result<PgQueryResult, sqlx::Error>,
-) -> Result<bool> {
+) -> std::result::Result<bool, sqlx::Error> {
     use sqlx::postgres::PgDatabaseError;
 
     let is_unique_violation_err = |er: Option<&PgDatabaseError>| {
@@ -176,7 +207,7 @@ fn was_user_subscribed(
                 Ok(true)
             }
             // The user is not already subscribed, propagate error
-            _ => Err(error.into()),
+            _ => Err(error),
         },
         Ok(_) => Ok(false),
     }
@@ -187,11 +218,13 @@ fn render_confirmation_email_from_template(
     tera: &Tera,
     subscriber: &ValidSubscriber,
     confirmation_link: &str,
-) -> Result<String> {
+) -> WebResult<String> {
     let mut ctx = Context::new();
     ctx.insert("subscriber_name", subscriber.name.as_ref());
     ctx.insert("confirmation_link", confirmation_link);
 
-    let out = tera.render(template_name, &ctx)?;
+    let out = tera
+        .render(template_name, &ctx)
+        .map_err(SubscribeError::Tera)?;
     Ok(out)
 }

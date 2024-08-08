@@ -1,4 +1,4 @@
-use crate::{config, email_client, model, web};
+use crate::{app, config, email_client, model, web};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -12,6 +12,8 @@ pub enum Error {
     EmailClient(#[from] email_client::Error),
     #[error("model manager error: {0}")]
     Model(#[from] model::Error),
+    #[error("serving error: {0}")]
+    Serve(#[from] app::serve::ServeError),
 
     #[error("tokio joining error: {0}")]
     TokioJoin(#[from] tokio::task::JoinError),

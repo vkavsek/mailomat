@@ -27,7 +27,7 @@ async fn api_subscribe_returns_200_for_valid_json() -> Result<()> {
         .mount(&app.email_server)
         .await;
 
-    let res = app.post_subscriptions(&json_request).await?;
+    let res = app.api_subscribe_post(&json_request).await?;
 
     assert_eq!(
         res.status(),
@@ -57,7 +57,7 @@ async fn api_subscribe_persists_the_new_subscriber() -> Result<()> {
         .mount(&app.email_server)
         .await;
 
-    app.post_subscriptions(&json_request).await?;
+    app.api_subscribe_post(&json_request).await?;
 
     let (email, name, status): (String, String, String) =
         sqlx::query_as("SELECT email, name, status FROM subscriptions")
@@ -94,7 +94,7 @@ async fn api_subscribe_unprocessable_entity() -> Result<()> {
     ];
 
     for (json_request, params) in tests {
-        let res = app.post_subscriptions(&json_request).await?;
+        let res = app.api_subscribe_post(&json_request).await?;
         assert_eq!(
             res.status(),
             StatusCode::UNPROCESSABLE_ENTITY,
@@ -137,7 +137,7 @@ async fn api_subscribe_returns_a_400_when_fields_are_present_but_invalid() -> Re
     ];
 
     for (body, description) in cases {
-        let response = app.post_subscriptions(&body).await?;
+        let response = app.api_subscribe_post(&body).await?;
         assert_eq!(
             400,
             response.status().as_u16(),
@@ -166,7 +166,7 @@ async fn api_subscribe_duplicated_subscription_still_returns_200() -> Result<()>
         .await;
 
     for (i, body) in std::iter::repeat(body).take(2).enumerate() {
-        let res = app.post_subscriptions(&body).await?;
+        let res = app.api_subscribe_post(&body).await?;
         assert_eq!(res.status(), StatusCode::OK, "failed in iteration {i}");
     }
 
@@ -190,7 +190,7 @@ async fn api_subscribe_sends_a_confirmation_email_for_valid_data() -> Result<()>
         .mount(&app.email_server)
         .await;
 
-    let res = app.post_subscriptions(&body).await?;
+    let res = app.api_subscribe_post(&body).await?;
     assert_eq!(res.status(), StatusCode::OK);
 
     Ok(())
@@ -200,7 +200,7 @@ async fn api_subscribe_sends_a_confirmation_email_for_valid_data() -> Result<()>
 #[tokio::test]
 async fn api_subscribe_sends_a_confirmation_email_with_a_link() -> Result<()> {
     let app = TestApp::spawn().await?;
-    let (links, _) = app.create_unconfirmed_subscriber().await?;
+    let (links, _) = app.subscriber_unconfirmed_create().await?;
 
     assert_eq!(links.html, links.plain_text);
 
@@ -218,7 +218,7 @@ async fn api_subscribe_fails_if_there_is_a_fatal_db_error() -> Result<()> {
     sqlx::query("ALTER TABLE subscriptions DROP COLUMN email")
         .execute(app.dm.db())
         .await?;
-    let resp = app.post_subscriptions(&body).await?;
+    let resp = app.api_subscribe_post(&body).await?;
     assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
 
     Ok(())

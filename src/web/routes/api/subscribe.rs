@@ -66,8 +66,7 @@ pub async fn subscribe(
 
     // BEGIN sql transaction
     let mut transaction = app_state.database_mgr.db().begin().await?;
-    let (subscriber_id, was_subscribed) =
-        insert_subscriber(&mut transaction, subscriber.clone()).await?;
+    let (subscriber_id, was_subscribed) = insert_subscriber(&mut transaction, &subscriber).await?;
     // If the user was already subscribed we want to rollback the changes and fail silently.
     if was_subscribed {
         transaction.rollback().await?;
@@ -87,7 +86,7 @@ pub async fn subscribe(
 /// the `was_subscribed` flag is set to `true`, so that we don't expose personal information.
 async fn insert_subscriber(
     transaction: &mut Transaction<'_, Postgres>,
-    subscriber: ValidSubscriber,
+    subscriber: &ValidSubscriber,
 ) -> WebResult<(Uuid, bool)> {
     let subscriber_id = Uuid::new_v4();
 

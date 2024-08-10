@@ -1,10 +1,17 @@
+use argon2::{
+    password_hash::{PasswordHasher, SaltString},
+    Argon2,
+};
 use axum::{extract::State, http::HeaderMap, Json};
+use secrecy::ExposeSecret;
+use tracing::info;
+use uuid::Uuid;
 
 use crate::{
     database::DbManager,
     utils::b64_decode_to_string,
     web::{
-        data::{Credentials, News, ValidEmail},
+        data::{News, UserCredentials, ValidEmail},
         WebResult,
     },
     AppState,
@@ -14,18 +21,21 @@ use crate::{
 pub enum NewsError {
     #[error("auth error: {0}")]
     Auth(#[from] AuthError),
-    #[error("sqlx error: {0}")]
-    Sqlx(#[from] sqlx::Error),
     #[error("email client error: {0}")]
     EmailClient(#[from] crate::email_client::Error),
 }
 
-pub async fn news(
+#[tracing::instrument(name = "publishing newsletter issue", skip(headers, app_state, news))]
+pub async fn news_publish(
     headers: HeaderMap,
     State(app_state): State<AppState>,
     Json(news): Json<News>,
 ) -> WebResult<()> {
     let creds = basic_auth(headers).map_err(NewsError::Auth)?;
+    let username = creds.username().to_owned();
+    let user_id = validate_user_credentials(creds, &app_state.database_mgr)
+        .await
+        .map_err(NewsError::Auth)?;
 
     // Get all subscribers that are eligible to receive the newsletter
     let emails: Vec<String> = sqlx::query_scalar(
@@ -33,8 +43,7 @@ pub async fn news(
     WHERE status = 'confirmed' "#,
     )
     .fetch_all(app_state.database_mgr.db())
-    .await
-    .map_err(NewsError::Sqlx)?;
+    .await?;
 
     let subscribers = emails
         .into_iter()
@@ -55,6 +64,7 @@ pub async fn news(
     tracing::debug!("{subscribers:?}");
 
     if !subscribers.is_empty() {
+        info!("sending newsletter - user: {}, id: {}", username, user_id);
         // Send batch email newsletter to the subscribers
         app_state
             .email_client
@@ -71,9 +81,34 @@ pub async fn news(
     Ok(())
 }
 
-async fn validate_credentials(credentials: Credentials, dm: DbManager) {}
+async fn validate_user_credentials(
+    credentials: UserCredentials,
+    dm: &DbManager,
+) -> Result<Uuid, AuthError> {
+    let user_id_n_pwd_salt: Option<(Uuid, Uuid)> = sqlx::query_as(
+        r#"
+    SELECT user_id, pwd_salt FROM users
+    WHERE username = $1 AND password = $2
+    "#,
+    )
+    .bind(credentials.username())
+    .bind(credentials.password().expose_secret())
+    .fetch_optional(dm.db())
+    .await?;
 
-fn basic_auth(headers: HeaderMap) -> core::result::Result<Credentials, AuthError> {
+    let (user_id, pwd_salt) = user_id_n_pwd_salt.ok_or(AuthError::InvalidLoginParams(format!(
+        "no user with matching credentials could be found in the database - username: {}",
+        credentials.username()
+    )))?;
+
+    // let argon2 = Argon2::default();
+    // argon2.hash_password_into(pwd, salt, out)
+    // let password_hash =
+    //     argon2.hash_password(credentials.password().expose_secret().as_bytes(), &pwd_salt);
+    Ok(user_id)
+}
+
+fn basic_auth(headers: HeaderMap) -> core::result::Result<UserCredentials, AuthError> {
     let header_val = headers
         .get("Authorization")
         .ok_or(AuthError::MissingAuthHeader)?
@@ -87,11 +122,14 @@ fn basic_auth(headers: HeaderMap) -> core::result::Result<Credentials, AuthError
         return Err(AuthError::MissingColon);
     };
 
-    Ok(Credentials::new(uname.into(), pass.to_string().into()))
+    Ok(UserCredentials::new(uname.into(), pass.to_string().into()))
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum AuthError {
+    #[error("the user doesn't have authorization: {0}")]
+    InvalidLoginParams(String),
+
     #[error("header 'Authorization' is missing from the request")]
     MissingAuthHeader,
     #[error("got invalid utf-8 in 'Authorization' header: {0}")]
@@ -101,6 +139,8 @@ pub enum AuthError {
     #[error("received the wrong authentication schema. expected: {0}")]
     WrongAuthSchema(String),
 
+    #[error("sqlx error: {0}")]
+    Sqlx(#[from] sqlx::Error),
     #[error("base64 decoding error: {0}")]
     Base64Decode(#[from] crate::utils::B64DecodeError),
 }

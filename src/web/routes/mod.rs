@@ -22,7 +22,7 @@ pub fn routes(app_state: AppState) -> Router {
 /// API - Routes nested under "/api" path
 fn api_routes(app_state: AppState) -> Router {
     Router::new()
-        .route("/news", post(api::news))
+        .route("/news", post(api::news_publish))
         .with_state(app_state.clone())
         .nest("/subscribe", subscribe_routes(app_state))
 }

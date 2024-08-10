@@ -17,11 +17,11 @@ pub type WebResult<T> = core::result::Result<T, Error>;
 pub enum Error {
     #[error("response mapper error: {0}")]
     ResponseMapper(#[from] midware::RespMapError),
-    #[error("routes error: {0}")]
+    #[error("api news error: {0}")]
     News(#[from] routes::api::news::NewsError),
-    #[error("routes error: {0}")]
+    #[error("api subscribe error: {0}")]
     Subscribe(#[from] routes::api::subscribe::SubscribeError),
-    #[error("routes error: {0}")]
+    #[error("api subscribe confirm error: {0}")]
     SubscribeConfirm(#[from] routes::api::subscribe_confirm::SubscribeConfirmError),
 
     #[error("sqlx error: {0}")]
@@ -68,10 +68,10 @@ impl IntoResponse for Error {
 
 #[derive(Debug, derive_more::Display)]
 pub enum ClientError {
-    #[display(fmt = "Received invalid input: {}", _0)]
+    #[display("Received invalid input: {}", _0)]
     InvalidInput(String),
-    #[display(fmt = "Service Error!")]
+    #[display("Service Error!")]
     ServiceError,
-    #[display(fmt = "Unauthorized Access")]
+    #[display("Unauthorized Access")]
     Unauthorized,
 }

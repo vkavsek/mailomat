@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use sqlx::{postgres::PgPoolOptions, Connection, PgConnection, PgPool};
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing::info;
 
 use crate::config::AppConfig;
@@ -12,57 +12,24 @@ pub struct DbManager {
 
 impl DbManager {
     pub async fn init(config: &AppConfig) -> Result<Self> {
-        let db_pool = init_db(config).await?;
         info!("{:<20} - Initializing the DB pool", "init_db");
+        let max_cons = if cfg!(test) { 1 } else { 5 };
+
+        let con_opts = config.db_config.connection_options();
+
+        let db_pool = PgPoolOptions::new()
+            .max_connections(max_cons)
+            .acquire_timeout(Duration::from_millis(500))
+            .connect_with(con_opts)
+            .await
+            .map_err(|_| Error::FailToCreatePool)?;
 
         Ok(Self { db: db_pool })
-    }
-
-    pub async fn configure_for_test(config: &AppConfig) -> Result<()> {
-        configure_test_db(config).await?;
-        Ok(())
     }
 
     pub fn db(&self) -> &PgPool {
         &self.db
     }
-}
-
-async fn init_db(config: &AppConfig) -> Result<PgPool> {
-    // NOTE: Tests sometimes fail if there is more than 1 max connection. This fixes it.
-    let max_cons = if cfg!(test) { 1 } else { 5 };
-
-    let con_opts = config.db_config.connection_options();
-
-    let db_pool = PgPoolOptions::new()
-        .max_connections(max_cons)
-        .acquire_timeout(Duration::from_millis(500))
-        .connect_with(con_opts)
-        .await
-        .map_err(|ex| Error::FailToCreatePool(format!("Standard DB Pool: {}", ex)))?;
-
-    Ok(db_pool)
-}
-
-async fn configure_test_db(config: &AppConfig) -> Result<()> {
-    let db_config = &config.db_config;
-    let mut connection =
-        PgConnection::connect_with(&db_config.connection_options_without_db()).await?;
-
-    let sql = format!(r#"CREATE DATABASE "{}";"#, db_config.db_name.clone());
-    sqlx::query(&sql).execute(&mut connection).await?;
-
-    // Create pool only used to migrate the DB
-    let db_pool = PgPoolOptions::new()
-        .max_connections(1)
-        .acquire_timeout(Duration::from_millis(1000))
-        .connect_with(db_config.connection_options())
-        .await
-        .map_err(|ex| Error::FailToCreatePool(format!("Test Config: {}", ex)))?;
-    // Migrate DB
-    sqlx::migrate!("./migrations").run(&db_pool).await?;
-
-    Ok(())
 }
 
 // ###################################
@@ -72,8 +39,8 @@ pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("failed to create db pool: {0}")]
-    FailToCreatePool(String),
+    #[error("failed to create db pool")]
+    FailToCreatePool,
     #[error("sqlx error: {0}")]
     Sqlx(#[from] sqlx::Error),
     #[error("sqlx migration error: {0}")]

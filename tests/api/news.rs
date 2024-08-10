@@ -8,7 +8,7 @@ use wiremock::{
 #[tokio::test]
 async fn api_news_not_delivered_to_unconfirmed_subscribers() -> Result<()> {
     let app = TestApp::spawn().await?;
-    app.create_unconfirmed_subscriber().await?;
+    app.subscriber_unconfirmed_create().await?;
 
     Mock::given(any())
         .respond_with(ResponseTemplate::new(200))
@@ -16,7 +16,7 @@ async fn api_news_not_delivered_to_unconfirmed_subscribers() -> Result<()> {
         .mount(&app.email_server)
         .await;
 
-    let res = app.post_api_news().await?;
+    let res = app.api_news_post().await?;
     assert_eq!(res.status().as_u16(), 200);
 
     Ok(())
@@ -49,7 +49,7 @@ async fn api_news_subscribers_with_invalid_emails_dont_get_news() -> Result<()> 
         .mount(&app.email_server)
         .await;
 
-    let resp = app.post_api_news().await?.error_for_status()?;
+    let resp = app.api_news_post().await?.error_for_status()?;
     assert_eq!(resp.status().as_u16(), 200);
 
     Ok(())
@@ -58,7 +58,7 @@ async fn api_news_subscribers_with_invalid_emails_dont_get_news() -> Result<()> 
 #[tokio::test]
 async fn api_news_delivered_to_confirmed_subscriber() -> Result<()> {
     let app = TestApp::spawn().await?;
-    app.create_confirmed_subscriber().await?;
+    app.subscriber_confirmed_create().await?;
 
     Mock::given(path("/email/batch"))
         .and(method("POST"))
@@ -68,7 +68,7 @@ async fn api_news_delivered_to_confirmed_subscriber() -> Result<()> {
         .mount(&app.email_server)
         .await;
 
-    let res = app.post_api_news().await?;
+    let res = app.api_news_post().await?;
     assert_eq!(res.status().as_u16(), 200);
 
     Ok(())
@@ -114,7 +114,7 @@ async fn api_news_invalid_data_422() -> Result<()> {
 #[tokio::test]
 async fn api_news_requests_missing_authorization_are_rejected() -> Result<()> {
     let app = TestApp::spawn().await?;
-    let resp = app.post_unauthorized_api_news().await?;
+    let resp = app.api_news_post_unauthorized().await?;
     assert_eq!(resp.status().as_u16(), 401);
     assert_eq!(
         resp.headers()["WWW-Authenticate"],

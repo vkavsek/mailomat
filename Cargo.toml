@@ -28,7 +28,7 @@ toml = "0.8"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # Convenience macros
 strum_macros = "0.26"
-derive_more = "0.99"
+derive_more = { version = "1", features = ["deref", "display"] }
 # Validation
 validator = { version = "0.18", features = ["derive"] }
 lazy-regex = "3"
@@ -37,6 +37,8 @@ unicode-segmentation = "1"
 tera = "1"
 # Config
 figment = { version = "0.10", features = ["env", "toml"] }
+# Password Hashing 
+argon2 = "0.5"
 # Others
 thiserror = "1"
 secrecy = { version = "0.8", features = ["serde"] }

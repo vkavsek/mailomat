@@ -14,7 +14,7 @@ use crate::utils;
 // ->   STRUCTS
 // ###################################
 #[derive(Debug)]
-pub struct Credentials {
+pub struct UserCredentials {
     username: String,
     password: SecretString,
 }
@@ -69,9 +69,9 @@ pub struct SubscriptionToken(String);
 // ###################################
 // ->   IMPLS
 // ###################################
-impl Credentials {
+impl UserCredentials {
     pub fn new(username: String, password: SecretString) -> Self {
-        Credentials { username, password }
+        UserCredentials { username, password }
     }
     pub fn username(&self) -> &str {
         &self.username

@@ -8,11 +8,11 @@ use wiremock::{
     Mock, ResponseTemplate,
 };
 
-use crate::helpers::{ConfirmationLinks, TestApp};
+use crate::helpers::{ConfirmationLink, TestApp};
 
 #[serial]
 #[tokio::test]
-async fn subscriptions_confirm_without_token_rejected_with_400() -> Result<()> {
+async fn api_subscribe_confirm_without_token_rejected_with_400() -> Result<()> {
     let app = TestApp::spawn().await?;
 
     let res = app
@@ -28,7 +28,7 @@ async fn subscriptions_confirm_without_token_rejected_with_400() -> Result<()> {
 
 #[serial]
 #[tokio::test]
-async fn subscriptions_confirm_link_returned_by_subscribe_returns_200() -> Result<()> {
+async fn api_subscribe_confirm_link_returned_by_subscribe_returns_200() -> Result<()> {
     let app = TestApp::spawn().await?;
     let body = json!({
         "name": "John Doe",
@@ -41,9 +41,9 @@ async fn subscriptions_confirm_link_returned_by_subscribe_returns_200() -> Resul
         .mount(&app.email_server)
         .await;
 
-    app.post_subscriptions(&body).await?;
+    app.api_subscribe_post(&body).await?;
     let email_req = &app.email_server.received_requests().await.unwrap()[0];
-    let ConfirmationLinks { html, .. } = app.get_confirmation_links(email_req)?;
+    let ConfirmationLink { html, .. } = app.confirmation_link_get(email_req)?;
 
     let resp = app.http_client.get(html).send().await?;
     assert_eq!(resp.status(), StatusCode::OK);
@@ -53,9 +53,9 @@ async fn subscriptions_confirm_link_returned_by_subscribe_returns_200() -> Resul
 
 #[serial]
 #[tokio::test]
-async fn subscriptions_confirm_successful_confirmation_of_subscription() -> Result<()> {
+async fn api_subscribe_confirm_successful_confirmation_of_subscription() -> Result<()> {
     let app = TestApp::spawn().await?;
-    let valid_sub = app.create_confirmed_subscriber().await?;
+    let valid_sub = app.subscriber_confirmed_create().await?;
 
     let (email, name, status): (String, String, String) =
         sqlx::query_as("SELECT email, name, status FROM subscriptions")
@@ -71,9 +71,9 @@ async fn subscriptions_confirm_successful_confirmation_of_subscription() -> Resu
 
 #[serial]
 #[tokio::test]
-async fn subscriptions_confirm_duplicated_confirmation_request_returns_200() -> Result<()> {
+async fn api_subscribe_confirm_duplicated_confirmation_request_returns_200() -> Result<()> {
     let app = TestApp::spawn().await?;
-    let (confirm_link, _) = app.create_unconfirmed_subscriber().await?;
+    let (confirm_link, _) = app.subscriber_unconfirmed_create().await?;
 
     for _ in 0..2 {
         let res = app
@@ -90,7 +90,7 @@ async fn subscriptions_confirm_duplicated_confirmation_request_returns_200() -> 
 
 #[serial]
 #[tokio::test]
-async fn subscriptions_confirm_correctly_formed_non_existent_token_returns_401() -> Result<()> {
+async fn api_subscribe_confirm_correctly_formed_non_existent_token_returns_401() -> Result<()> {
     let app = TestApp::spawn().await?;
 
     let mut url = Url::parse(&format!("http://{}", app.addr))?;
@@ -109,9 +109,9 @@ async fn subscriptions_confirm_correctly_formed_non_existent_token_returns_401()
 
 #[serial]
 #[tokio::test]
-async fn subscriptions_confirm_invalid_sub_token_returns_400() -> Result<()> {
+async fn api_subscribe_confirm_invalid_sub_token_returns_400() -> Result<()> {
     let app = TestApp::spawn().await?;
-    let (mut confirm_link, _) = app.create_unconfirmed_subscriber().await?;
+    let (mut confirm_link, _) = app.subscriber_unconfirmed_create().await?;
 
     let original_query = confirm_link.html.query().unwrap().to_owned();
     let query_chars_len = original_query.chars().count();

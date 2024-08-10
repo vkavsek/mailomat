@@ -1,16 +1,17 @@
-use std::{net::SocketAddr, sync::OnceLock};
+use std::{net::SocketAddr, sync::OnceLock, time::Duration};
 
 use anyhow::{Context, Result};
 use fake::Fake;
 use linkify::LinkKind;
 use mailomat::{
-    config::get_or_init_config,
+    config::{get_or_init_config, AppConfig},
     database::DbManager,
     web::data::{DeserSubscriber, ValidSubscriber},
     App,
 };
 use reqwest::Client;
 use serde_json::{json, Value};
+use sqlx::{postgres::PgPoolOptions, Connection, PgConnection};
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
 use wiremock::{
@@ -18,19 +19,7 @@ use wiremock::{
     Mock, MockServer, ResponseTemplate,
 };
 
-fn init_test_subscriber() {
-    static SUBSCRIBER: OnceLock<()> = OnceLock::new();
-    SUBSCRIBER.get_or_init(|| {
-        tracing_subscriber::fmt()
-            .without_time()
-            .with_target(false)
-            .with_env_filter(EnvFilter::from_env("TEST_LOG"))
-            .compact()
-            .init();
-    });
-}
-
-pub struct ConfirmationLinks {
+pub struct ConfirmationLink {
     pub html: reqwest::Url,
     pub plain_text: reqwest::Url,
 }
@@ -41,6 +30,7 @@ pub struct TestApp {
     pub dm: DbManager,
     pub email_server: MockServer,
 }
+
 impl TestApp {
     /// A helper function that tries to spawn a separate thread to serve our app
     /// returning the *socket address* on which it is listening.
@@ -61,26 +51,47 @@ impl TestApp {
             c
         };
 
-        // Create and migrate the test DB
-        DbManager::configure_for_test(&config).await?;
+        test_database_create_migrate(&config).await?;
 
         let app = App::build_from_config(&config).await?;
 
+        // Add a test user
+        sqlx::query(
+            r#"INSERT INTO users (user_id, username, pwd_salt, password)
+        VALUES ($1, $2, $3, $4)"#,
+        )
+        .bind(Uuid::new_v4())
+        .bind(Uuid::new_v4())
+        .bind(Uuid::new_v4())
+        .bind(Uuid::new_v4())
+        .execute(app.app_state.database_mgr.db())
+        .await?;
+
+        // Build a TestApp
         let addr = app.listener.local_addr()?;
-        let mm = app.app_state.database_mgr.clone();
+        let dm = app.app_state.database_mgr.clone();
         let http_client = Client::new();
+        let test_app = TestApp {
+            http_client,
+            addr,
+            dm,
+            email_server,
+        };
 
         tokio::spawn(mailomat::serve(app));
 
-        Ok(TestApp {
-            http_client,
-            addr,
-            dm: mm,
-            email_server,
-        })
+        Ok(test_app)
     }
 
-    pub async fn post_subscriptions(&self, body: &serde_json::Value) -> Result<reqwest::Response> {
+    pub async fn test_user_get(&self) -> Result<(String, String)> {
+        let user: (String, String) =
+            sqlx::query_as(r#"SELECT username, password FROM users LIMIT 1"#)
+                .fetch_one(self.dm.db())
+                .await?;
+        Ok(user)
+    }
+
+    pub async fn api_subscribe_post(&self, body: &serde_json::Value) -> Result<reqwest::Response> {
         let res = self
             .http_client
             .post(format!("http://{}/api/subscribe", self.addr))
@@ -91,7 +102,7 @@ impl TestApp {
         Ok(res)
     }
 
-    pub async fn post_unauthorized_api_news(&self) -> Result<reqwest::Response> {
+    pub async fn api_news_post_unauthorized(&self) -> Result<reqwest::Response> {
         // A sketch of the current newsletter payload structure.
         let newsletter_req_body = json!({
             "title": "Newsletter title",
@@ -111,7 +122,7 @@ impl TestApp {
         Ok(res)
     }
 
-    pub async fn post_api_news(&self) -> Result<reqwest::Response> {
+    pub async fn api_news_post(&self) -> Result<reqwest::Response> {
         // A sketch of the current newsletter payload structure.
         let newsletter_req_body = json!({
             "title": "Newsletter title",
@@ -121,10 +132,11 @@ impl TestApp {
             }
         });
 
+        let (username, password) = self.test_user_get().await?;
         let res = self
             .http_client
             .post(&format!("http://{}/api/news", &self.addr))
-            .basic_auth("admin", Some("password"))
+            .basic_auth(username, Some(password))
             .json(&newsletter_req_body)
             .send()
             .await?;
@@ -133,10 +145,7 @@ impl TestApp {
     }
 
     /// Extract confirmation links embedded in the request to the email API.
-    pub fn get_confirmation_links(
-        &self,
-        email_req: &wiremock::Request,
-    ) -> Result<ConfirmationLinks> {
+    pub fn confirmation_link_get(&self, email_req: &wiremock::Request) -> Result<ConfirmationLink> {
         let body: Value = serde_json::from_slice(&email_req.body)?;
 
         let get_link = |s: &str| {
@@ -156,14 +165,14 @@ impl TestApp {
 
         let html = get_link(body["HtmlBody"].as_str().context("No link in HtmlBody")?)?;
         let plain_text = get_link(body["TextBody"].as_str().context("No link in TextBody")?)?;
-        Ok(ConfirmationLinks { html, plain_text })
+        Ok(ConfirmationLink { html, plain_text })
     }
 
     /// Create new subscriber with: NAME - *John Doe*, EMAIL - *john.doe@example.com*
     /// Returns confirmation links required to confirm this subscriber and the subscriber's info.
-    pub async fn create_unconfirmed_subscriber(
+    pub async fn subscriber_unconfirmed_create(
         &self,
-    ) -> Result<(ConfirmationLinks, ValidSubscriber)> {
+    ) -> Result<(ConfirmationLink, ValidSubscriber)> {
         let name: String = fake::faker::name::en::Name().fake();
         let email_provider: String = fake::faker::internet::en::FreeEmailProvider().fake();
         let email = name.to_lowercase().replace(" ", "_") + "@" + &email_provider;
@@ -182,7 +191,7 @@ impl TestApp {
             .mount_as_scoped(&self.email_server)
             .await;
 
-        self.post_subscriptions(&body).await?.error_for_status()?;
+        self.api_subscribe_post(&body).await?.error_for_status()?;
         let email_req = &self
             .email_server
             .received_requests()
@@ -190,15 +199,15 @@ impl TestApp {
             .expect("Requests should be received")
             .pop()
             .expect("1 request is expected");
-        let links = self.get_confirmation_links(email_req)?;
+        let links = self.confirmation_link_get(email_req)?;
 
         Ok((links, valid_sub))
     }
 
     /// Create new subscriber with: NAME - *John Doe*, EMAIL - *john.doe@example.com*
     /// and confirm it. Returns the info of the subscriber that was just added and confirmed.
-    pub async fn create_confirmed_subscriber(&self) -> Result<ValidSubscriber> {
-        let (links, subscriber) = self.create_unconfirmed_subscriber().await?;
+    pub async fn subscriber_confirmed_create(&self) -> Result<ValidSubscriber> {
+        let (links, subscriber) = self.subscriber_unconfirmed_create().await?;
         self.http_client
             .get(links.html)
             .send()
@@ -207,4 +216,37 @@ impl TestApp {
 
         Ok(subscriber)
     }
+}
+
+fn init_test_subscriber() {
+    static SUBSCRIBER: OnceLock<()> = OnceLock::new();
+    SUBSCRIBER.get_or_init(|| {
+        tracing_subscriber::fmt()
+            .without_time()
+            .with_target(false)
+            .with_env_filter(EnvFilter::from_env("TEST_LOG"))
+            .compact()
+            .init();
+    });
+}
+
+/// Create a test database based on AppConfig and migrate it
+async fn test_database_create_migrate(config: &AppConfig) -> Result<()> {
+    let db_config = &config.db_config;
+    let mut connection =
+        PgConnection::connect_with(&db_config.connection_options_without_db()).await?;
+
+    let sql = format!(r#"CREATE DATABASE "{}";"#, db_config.db_name.clone());
+    sqlx::query(&sql).execute(&mut connection).await?;
+
+    // Create pool only used to migrate the DB
+    let db_pool = PgPoolOptions::new()
+        .max_connections(1)
+        .acquire_timeout(Duration::from_millis(1000))
+        .connect_with(db_config.connection_options())
+        .await?;
+    // Migrate DB
+    sqlx::migrate!("./migrations").run(&db_pool).await?;
+
+    Ok(())
 }

@@ -36,6 +36,7 @@ impl Error {
         use Error::*;
 
         match self {
+            // News(NewsError::Auth(auth::AuthError::InvalidLoginParams(_))) => (StatusCode)
             News(NewsError::Auth(_))
             | SubscribeConfirm(SubscribeConfirmError::SubTokenInDbNotFound) => {
                 (StatusCode::UNAUTHORIZED, ClientError::Unauthorized)

@@ -15,8 +15,8 @@ use crate::utils;
 // ###################################
 #[derive(Debug)]
 pub struct UserCredentials {
-    username: String,
-    password: SecretString,
+    pub username: String,
+    pub password: SecretString,
 }
 
 /// A deserializable struct that contains the data of the newsletter to be sent to the subscribers
@@ -72,12 +72,6 @@ pub struct SubscriptionToken(String);
 impl UserCredentials {
     pub fn new(username: String, password: SecretString) -> Self {
         UserCredentials { username, password }
-    }
-    pub fn username(&self) -> &str {
-        &self.username
-    }
-    pub fn password(&self) -> &SecretString {
-        &self.password
     }
 }
 impl SubscriptionToken {

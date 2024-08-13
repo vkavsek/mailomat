@@ -1,5 +1,14 @@
+use crate::{
+    database::DbManager,
+    utils::b64_decode_to_string,
+    web::{
+        auth::{self, AuthError},
+        data::UserCredentials,
+    },
+};
 use axum::{extract::State, http::HeaderMap, Json};
-use tracing::info;
+use secrecy::SecretString;
+use uuid::Uuid;
 
 use crate::{
     web::{
@@ -24,9 +33,8 @@ pub async fn news_publish(
     State(app_state): State<AppState>,
     Json(news): Json<News>,
 ) -> WebResult<()> {
-    let creds = web::auth::basic_auth(headers).map_err(NewsError::Auth)?;
-    let username = creds.username().to_owned();
-    let user_id = web::auth::validate_user_credentials(creds, &app_state.database_mgr)
+    let creds = retrieve_user_credentials_from_basic_auth(headers).map_err(NewsError::Auth)?;
+    news_authenticate(creds, &app_state.database_mgr)
         .await
         .map_err(NewsError::Auth)?;
 
@@ -57,7 +65,7 @@ pub async fn news_publish(
     tracing::debug!("{subscribers:?}");
 
     if !subscribers.is_empty() {
-        info!("sending newsletter - user: {}, id: {}", username, user_id);
+        // info!("sending newsletter - user: {}, id: {}", username, user_id);
         // Send batch email newsletter to the subscribers
         app_state
             .email_client
@@ -72,4 +80,49 @@ pub async fn news_publish(
     }
 
     Ok(())
+}
+
+pub fn retrieve_user_credentials_from_basic_auth(
+    headers: HeaderMap,
+) -> Result<UserCredentials, AuthError> {
+    let header_val = headers
+        .get("Authorization")
+        .ok_or(AuthError::MissingAuthHeader)?
+        .to_str()
+        .map_err(|e| AuthError::InvalidUtf(e.to_string()))?;
+    let b64_encoded_seg = header_val
+        .strip_prefix("Basic ")
+        .ok_or(AuthError::WrongAuthSchema("Basic".to_string()))?;
+    let decoded_creds = b64_decode_to_string(b64_encoded_seg)?;
+    let Some((uname, pass)) = decoded_creds.split_once(':') else {
+        return Err(AuthError::MissingColon);
+    };
+
+    Ok(UserCredentials::new(uname.into(), pass.to_string().into()))
+}
+
+pub async fn news_authenticate(
+    credentials: UserCredentials,
+    dm: &DbManager,
+) -> Result<Uuid, AuthError> {
+    let user_id_n_pwd_salt_n_pwd_hash: Option<(Uuid, Uuid, String)> = sqlx::query_as(
+        r#"
+    SELECT user_id, pwd_salt, password_hash FROM users
+    WHERE username = $1
+    "#,
+    )
+    .bind(&credentials.username)
+    .fetch_optional(dm.db())
+    .await?;
+
+    let (user_id, pwd_salt, pwd_hash) =
+        user_id_n_pwd_salt_n_pwd_hash.ok_or(AuthError::UserNotFound(credentials.username))?;
+
+    let to_hash = auth::ToHash::new(
+        credentials.password,
+        SecretString::new(pwd_salt.to_string()),
+    );
+    auth::validate_async(to_hash, pwd_hash).await?;
+
+    Ok(user_id)
 }

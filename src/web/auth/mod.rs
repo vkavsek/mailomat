@@ -1,58 +1,101 @@
 mod error;
 
-pub use error::AuthError;
+use std::sync::OnceLock;
 
-use super::data::UserCredentials;
-use crate::{database::DbManager, utils::b64_decode_to_string};
+pub use error::{AuthError, Result};
+use secrecy::{ExposeSecret, SecretString};
 
 use argon2::{
     password_hash::{PasswordHasher, SaltString},
-    Argon2,
+    Argon2, PasswordHash, PasswordVerifier,
 };
-use axum::http::HeaderMap;
-use secrecy::ExposeSecret;
-use uuid::Uuid;
 
-pub fn basic_auth(headers: HeaderMap) -> core::result::Result<UserCredentials, AuthError> {
-    let header_val = headers
-        .get("Authorization")
-        .ok_or(AuthError::MissingAuthHeader)?
-        .to_str()
-        .map_err(|e| AuthError::InvalidUtf(e.to_string()))?;
-    let b64_encoded_seg = header_val
-        .strip_prefix("Basic ")
-        .ok_or(AuthError::WrongAuthSchema("Basic".to_string()))?;
-    let decoded_creds = b64_decode_to_string(b64_encoded_seg)?;
-    let Some((uname, pass)) = decoded_creds.split_once(':') else {
-        return Err(AuthError::MissingColon);
-    };
-
-    Ok(UserCredentials::new(uname.into(), pass.to_string().into()))
+pub fn get_argon2() -> &'static Argon2<'static> {
+    static AUTH_MAN: OnceLock<Argon2> = OnceLock::new();
+    AUTH_MAN.get_or_init(|| {
+        Argon2::new(
+            argon2::Algorithm::Argon2id,
+            argon2::Version::V0x13,
+            argon2::Params::DEFAULT,
+        )
+    })
 }
 
-pub async fn validate_user_credentials(
-    credentials: UserCredentials,
-    dm: &DbManager,
-) -> Result<Uuid, AuthError> {
-    let user_id_n_pwd_salt: Option<(Uuid, Uuid)> = sqlx::query_as(
-        r#"
-    SELECT user_id, pwd_salt FROM users
-    WHERE username = $1 AND password = $2
-    "#,
-    )
-    .bind(credentials.username())
-    .bind(credentials.password().expose_secret())
-    .fetch_optional(dm.db())
-    .await?;
+#[derive(Clone)]
+pub struct ToHash {
+    password: SecretString,
+    salt: SecretString,
+}
+impl ToHash {
+    pub fn new(password: SecretString, salt: SecretString) -> Self {
+        ToHash { password, salt }
+    }
+}
 
-    let (user_id, pwd_salt) = user_id_n_pwd_salt.ok_or(AuthError::InvalidLoginParams(format!(
-        "no user with matching credentials could be found in the database - username: {}",
-        credentials.username()
-    )))?;
+pub async fn hash_to_string_async(to_hash: ToHash) -> Result<String> {
+    tokio::task::spawn_blocking(move || hash_to_string(to_hash)).await?
+}
 
-    let argon2 = Argon2::default();
-    // argon2.hash_password_into(pwd, salt, out);
-    // let password_hash =
-    //     argon2.hash_password(credentials.password().expose_secret().as_bytes(), &pwd_salt);
-    Ok(user_id)
+pub fn hash_to_string(to_hash: ToHash) -> Result<String> {
+    let argon2 = get_argon2();
+
+    let salt = SaltString::encode_b64(to_hash.salt.expose_secret().as_bytes())
+        .map_err(|e| AuthError::Salting(e.to_string()))?;
+
+    let hashed = argon2
+        .hash_password(to_hash.password.expose_secret().as_bytes(), &salt)
+        .map_err(|e| AuthError::Hashing(e.to_string()))?
+        .to_string();
+
+    Ok(hashed)
+}
+
+pub async fn validate_async(to_hash: ToHash, pwd_hash_ref: String) -> Result<()> {
+    tokio::task::spawn_blocking(move || validate(to_hash, &pwd_hash_ref)).await?
+}
+pub fn validate(to_hash: ToHash, pwd_hash_ref: &str) -> Result<()> {
+    let argon2 = get_argon2();
+
+    let parsed_hash =
+        PasswordHash::new(pwd_hash_ref).map_err(|e| AuthError::Hashing(e.to_string()))?;
+
+    argon2
+        .verify_password(to_hash.password.expose_secret().as_bytes(), &parsed_hash)
+        .map_err(|_| AuthError::InvalidPassword)?;
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyhow::Result;
+    use fake::Fake;
+    use uuid::Uuid;
+
+    const ASCII: &str =
+        "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&\'()*+,-./:;<=>?@";
+
+    fn _fake_pwd() -> String {
+        let faker = fake::StringFaker::with(Vec::from(ASCII), 12..256);
+        faker.fake()
+    }
+
+    #[test]
+    fn pwd_hashing_and_validate_ok() -> Result<()> {
+        for _ in 0..3 {
+            let password = _fake_pwd();
+            let salt = Uuid::new_v4();
+
+            let to_hash = ToHash::new(
+                SecretString::new(password),
+                SecretString::new(salt.to_string()),
+            );
+
+            let hashed = hash_to_string(to_hash.clone())?;
+
+            validate(to_hash, &hashed)?;
+        }
+        Ok(())
+    }
 }

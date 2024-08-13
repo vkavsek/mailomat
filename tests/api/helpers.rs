@@ -6,10 +6,14 @@ use linkify::LinkKind;
 use mailomat::{
     config::{get_or_init_config, AppConfig},
     database::DbManager,
-    web::data::{DeserSubscriber, ValidSubscriber},
+    web::{
+        auth::ToHash,
+        data::{DeserSubscriber, ValidSubscriber},
+    },
     App,
 };
 use reqwest::Client;
+use secrecy::SecretString;
 use serde_json::{json, Value};
 use sqlx::{postgres::PgPoolOptions, Connection, PgConnection};
 use tracing_subscriber::EnvFilter;
@@ -29,6 +33,12 @@ pub struct TestApp {
     pub addr: SocketAddr,
     pub dm: DbManager,
     pub email_server: MockServer,
+    pub test_user: TestUser,
+}
+
+pub struct TestUser {
+    pub username: String,
+    pub password: String,
 }
 
 impl TestApp {
@@ -54,16 +64,24 @@ impl TestApp {
         test_database_create_migrate(&config).await?;
 
         let app = App::build_from_config(&config).await?;
+        let username = Uuid::new_v4().to_string();
+        let pwd_salt = Uuid::new_v4();
+        let password = Uuid::new_v4().to_string();
+        let password_hash = mailomat::web::auth::hash_to_string_async(ToHash::new(
+            SecretString::new(password.clone()),
+            SecretString::new(pwd_salt.to_string()),
+        ))
+        .await?;
 
         // Add a test user
         sqlx::query(
-            r#"INSERT INTO users (user_id, username, pwd_salt, password)
+            r#"INSERT INTO users (user_id, username, pwd_salt, password_hash)
         VALUES ($1, $2, $3, $4)"#,
         )
         .bind(Uuid::new_v4())
-        .bind(Uuid::new_v4())
-        .bind(Uuid::new_v4())
-        .bind(Uuid::new_v4())
+        .bind(&username)
+        .bind(pwd_salt)
+        .bind(password_hash)
         .execute(app.app_state.database_mgr.db())
         .await?;
 
@@ -71,24 +89,18 @@ impl TestApp {
         let addr = app.listener.local_addr()?;
         let dm = app.app_state.database_mgr.clone();
         let http_client = Client::new();
+        let test_user = TestUser { username, password };
         let test_app = TestApp {
             http_client,
             addr,
             dm,
             email_server,
+            test_user,
         };
 
         tokio::spawn(mailomat::serve(app));
 
         Ok(test_app)
-    }
-
-    pub async fn test_user_get(&self) -> Result<(String, String)> {
-        let user: (String, String) =
-            sqlx::query_as(r#"SELECT username, password FROM users LIMIT 1"#)
-                .fetch_one(self.dm.db())
-                .await?;
-        Ok(user)
     }
 
     pub async fn api_subscribe_post(&self, body: &serde_json::Value) -> Result<reqwest::Response> {
@@ -132,11 +144,11 @@ impl TestApp {
             }
         });
 
-        let (username, password) = self.test_user_get().await?;
+        let test_user = &self.test_user;
         let res = self
             .http_client
             .post(&format!("http://{}/api/news", &self.addr))
-            .basic_auth(username, Some(password))
+            .basic_auth(test_user.username.clone(), Some(test_user.password.clone()))
             .json(&newsletter_req_body)
             .send()
             .await?;

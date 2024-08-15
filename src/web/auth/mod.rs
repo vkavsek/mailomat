@@ -1,101 +1,106 @@
 mod error;
-
-use std::sync::OnceLock;
+pub mod password;
 
 pub use error::{AuthError, Result};
-use secrecy::{ExposeSecret, SecretString};
 
-use argon2::{
-    password_hash::{PasswordHasher, SaltString},
-    Argon2, PasswordHash, PasswordVerifier,
-};
+use unicode_segmentation::UnicodeSegmentation;
 
-pub fn get_argon2() -> &'static Argon2<'static> {
-    static AUTH_MAN: OnceLock<Argon2> = OnceLock::new();
-    AUTH_MAN.get_or_init(|| {
-        Argon2::new(
-            argon2::Algorithm::Argon2id,
-            argon2::Version::V0x13,
-            argon2::Params::DEFAULT,
-        )
+use crate::utils::b64_decode_to_string;
+use crate::web::data::UserCredentials;
+
+use axum::http::HeaderMap;
+pub async fn basic_schema_user_credentials_from_header_map(
+    header_map: HeaderMap,
+) -> Result<UserCredentials> {
+    tokio::task::spawn_blocking(move || {
+        let header_val = header_map
+            .get("Authorization")
+            .ok_or(AuthError::MissingAuthHeader)?
+            .to_str()
+            .map_err(|e| AuthError::InvalidUtf(e.to_string()))?;
+        let b64_encoded_seg =
+            header_val
+                .strip_prefix("Basic ")
+                .ok_or(AuthError::WrongAuthSchema {
+                    schema: "Basic".to_string(),
+                })?;
+        let decoded_creds = b64_decode_to_string(b64_encoded_seg)?;
+        let Some((uname, pass)) = decoded_creds.split_once(':') else {
+            return Err(AuthError::MissingColon);
+        };
+        if uname.graphemes(true).count() > 256 {
+            return Err(AuthError::UsernameTooLong);
+        }
+        if pass.graphemes(true).count() > 256 {
+            return Err(AuthError::PasswordTooLong);
+        }
+
+        Ok(UserCredentials::new(uname.into(), pass.to_string().into()))
     })
+    .await?
 }
-
-#[derive(Clone)]
-pub struct ToHash {
-    password: SecretString,
-    salt: SecretString,
-}
-impl ToHash {
-    pub fn new(password: SecretString, salt: SecretString) -> Self {
-        ToHash { password, salt }
-    }
-}
-
-pub async fn hash_to_string_async(to_hash: ToHash) -> Result<String> {
-    tokio::task::spawn_blocking(move || hash_to_string(to_hash)).await?
-}
-
-pub fn hash_to_string(to_hash: ToHash) -> Result<String> {
-    let argon2 = get_argon2();
-
-    let salt = SaltString::encode_b64(to_hash.salt.expose_secret().as_bytes())
-        .map_err(|e| AuthError::Salting(e.to_string()))?;
-
-    let hashed = argon2
-        .hash_password(to_hash.password.expose_secret().as_bytes(), &salt)
-        .map_err(|e| AuthError::Hashing(e.to_string()))?
-        .to_string();
-
-    Ok(hashed)
-}
-
-pub async fn validate_async(to_hash: ToHash, pwd_hash_ref: String) -> Result<()> {
-    tokio::task::spawn_blocking(move || validate(to_hash, &pwd_hash_ref)).await?
-}
-pub fn validate(to_hash: ToHash, pwd_hash_ref: &str) -> Result<()> {
-    let argon2 = get_argon2();
-
-    let parsed_hash =
-        PasswordHash::new(pwd_hash_ref).map_err(|e| AuthError::Hashing(e.to_string()))?;
-
-    argon2
-        .verify_password(to_hash.password.expose_secret().as_bytes(), &parsed_hash)
-        .map_err(|_| AuthError::InvalidPassword)?;
-
-    Ok(())
-}
-
 #[cfg(test)]
-mod tests {
+mod test {
     use super::*;
+    use crate::utils::b64_encode;
+    use crate::web::data::UserCredentials;
     use anyhow::Result;
+    use axum::http::HeaderMap;
+    use claims::assert_err;
     use fake::Fake;
+    use secrecy::{ExposeSecret, SecretString};
     use uuid::Uuid;
 
-    const ASCII: &str =
-        "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&\'()*+,-./:;<=>?@";
+    const UTF: &str =
+        "0123456789abcčdefghijklmnopqrsštuvwxyzžABCČDEFGHIJKLMNOPQRSŠTUVWXYZŽ!\"#$%&\'()*+,-./:;<=>?@~ˇ^˘°˛`˙´˝¨æ„|€“[]’‘¢{}§¶ŧ←↓→øþ÷×¤´ß—";
 
-    fn _fake_pwd() -> String {
-        let faker = fake::StringFaker::with(Vec::from(ASCII), 12..256);
+    fn fake_valid_pwd() -> String {
+        let faker = fake::StringFaker::with(Vec::from(UTF), 12..256);
         faker.fake()
     }
 
-    #[test]
-    fn pwd_hashing_and_validate_ok() -> Result<()> {
-        for _ in 0..3 {
-            let password = _fake_pwd();
-            let salt = Uuid::new_v4();
+    fn fake_invalid_pwd() -> String {
+        let faker = fake::StringFaker::with(Vec::from(UTF), 256..1024);
+        faker.fake()
+    }
 
-            let to_hash = ToHash::new(
-                SecretString::new(password),
-                SecretString::new(salt.to_string()),
+    #[tokio::test]
+    async fn user_credentials_from_header_map_valid() -> Result<()> {
+        for _ in 0..100 {
+            let username = Uuid::new_v4().to_string();
+            let password = fake_valid_pwd();
+            let b64_encoded_uname_and_password = b64_encode(format!("{username}:{password}"));
+
+            let basic_auth = format!("Basic {b64_encoded_uname_and_password}");
+            let mut header_map = HeaderMap::new();
+            header_map.append(axum::http::header::AUTHORIZATION, basic_auth.parse()?);
+
+            let creds_from_schema =
+                basic_schema_user_credentials_from_header_map(header_map).await?;
+            let creds = UserCredentials::new(username, SecretString::new(password));
+
+            assert_eq!(creds_from_schema.username, creds.username);
+            assert_eq!(
+                creds_from_schema.password.expose_secret(),
+                creds.password.expose_secret()
             );
-
-            let hashed = hash_to_string(to_hash.clone())?;
-
-            validate(to_hash, &hashed)?;
         }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn user_credentials_from_header_map_invalid() -> Result<()> {
+        let username = Uuid::new_v4().to_string();
+        let password = fake_invalid_pwd();
+        let b64_encoded_uname_and_password = b64_encode(format!("{username}:{password}"));
+
+        let basic_auth = format!("Basic {b64_encoded_uname_and_password}");
+        let mut header_map = HeaderMap::new();
+        header_map.append(axum::http::header::AUTHORIZATION, basic_auth.parse()?);
+
+        let creds_from_schema = basic_schema_user_credentials_from_header_map(header_map).await;
+        assert_err!(creds_from_schema);
+
         Ok(())
     }
 }

@@ -38,7 +38,7 @@ tera = "1"
 # Config
 figment = { version = "0.10", features = ["env", "toml"] }
 # Password Hashing 
-argon2 = "0.5"
+argon2 = { version = "0.5", features = ["std"] }
 # Others
 thiserror = "1"
 secrecy = { version = "0.8", features = ["serde"] }

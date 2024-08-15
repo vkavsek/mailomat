@@ -7,7 +7,7 @@ use mailomat::{
     config::{get_or_init_config, AppConfig},
     database::DbManager,
     web::{
-        auth::ToHash,
+        auth::password,
         data::{DeserSubscriber, ValidSubscriber},
     },
     App,
@@ -65,22 +65,17 @@ impl TestApp {
 
         let app = App::build_from_config(&config).await?;
         let username = Uuid::new_v4().to_string();
-        let pwd_salt = Uuid::new_v4();
         let password = Uuid::new_v4().to_string();
-        let password_hash = mailomat::web::auth::hash_to_string_async(ToHash::new(
-            SecretString::new(password.clone()),
-            SecretString::new(pwd_salt.to_string()),
-        ))
-        .await?;
+        let password_hash =
+            password::hash_new_to_string_async(SecretString::new(password.clone())).await?;
 
         // Add a test user
         sqlx::query(
-            r#"INSERT INTO users (user_id, username, pwd_salt, password_hash)
-        VALUES ($1, $2, $3, $4)"#,
+            r#"INSERT INTO users (user_id, username, password_hash)
+        VALUES ($1, $2, $3)"#,
         )
         .bind(Uuid::new_v4())
         .bind(&username)
-        .bind(pwd_salt)
         .bind(password_hash)
         .execute(app.app_state.database_mgr.db())
         .await?;

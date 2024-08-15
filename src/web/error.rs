@@ -36,15 +36,14 @@ impl Error {
         use Error::*;
 
         match self {
-            // News(NewsError::Auth(auth::AuthError::InvalidLoginParams(_))) => (StatusCode)
-            News(NewsError::Auth(_))
-            | SubscribeConfirm(SubscribeConfirmError::SubTokenInDbNotFound) => {
+            News(NewsError::Auth(e)) => e.status_code_and_client_error(),
+            SubscribeConfirm(SubscribeConfirmError::SubTokenInDbNotFound) => {
                 (StatusCode::UNAUTHORIZED, ClientError::Unauthorized)
             }
             Subscribe(SubscribeError::ValidSubscriberParse(er))
             | SubscribeConfirm(SubscribeConfirmError::DataParsing(er)) => (
                 StatusCode::BAD_REQUEST,
-                ClientError::InvalidInput(er.to_string()),
+                ClientError::InputInvalid(er.to_string()),
             ),
             //  => {
             // }
@@ -69,10 +68,12 @@ impl IntoResponse for Error {
 
 #[derive(Debug, derive_more::Display)]
 pub enum ClientError {
-    #[display("Received invalid input: {}", _0)]
-    InvalidInput(String),
     #[display("Service Error!")]
     ServiceError,
+    #[display("Received invalid input: {}", _0)]
+    InputInvalid(String),
+    #[display("You provided an invalid username or password!")]
+    UsernameOrPasswordInvalid,
     #[display("Unauthorized Access")]
     Unauthorized,
 }

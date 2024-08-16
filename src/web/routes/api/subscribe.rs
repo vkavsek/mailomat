@@ -222,8 +222,9 @@ fn render_confirmation_email_from_template(
     ctx.insert("subscriber_name", subscriber.name.as_ref());
     ctx.insert("confirmation_link", confirmation_link);
 
+    let template_name = format!("emails/{}", template_name);
     let out = tera
-        .render(template_name, &ctx)
+        .render(&template_name, &ctx)
         .map_err(SubscribeError::Tera)?;
     Ok(out)
 }

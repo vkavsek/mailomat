@@ -36,6 +36,7 @@ pub struct TestApp {
     pub test_user: TestUser,
 }
 
+#[derive(Clone)]
 pub struct TestUser {
     pub username: String,
     pub password: String,
@@ -256,4 +257,28 @@ async fn test_database_create_migrate(config: &AppConfig) -> Result<()> {
     sqlx::migrate!("./migrations").run(&db_pool).await?;
 
     Ok(())
+}
+
+pub async fn api_news_post_appless(
+    test_user: &TestUser,
+    addr: &SocketAddr,
+    http_client: Client,
+) -> Result<reqwest::Response> {
+    // A sketch of the current newsletter payload structure.
+    let newsletter_req_body = json!({
+        "title": "Newsletter title",
+        "content": {
+            "text": "Newsletter body as plain text",
+            "html": "<p>Newsletter body as HTML</p>",
+        }
+    });
+
+    let res = http_client
+        .post(&format!("http://{}/api/news", &addr))
+        .basic_auth(test_user.username.clone(), Some(test_user.password.clone()))
+        .json(&newsletter_req_body)
+        .send()
+        .await?;
+
+    Ok(res)
 }

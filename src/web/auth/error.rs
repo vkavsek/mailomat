@@ -6,7 +6,7 @@ pub type Result<T> = core::result::Result<T, AuthError>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AuthError {
-    #[error("the user with username: {username} wasn't found")]
+    #[error("username not found in the database: {username}")]
     UsernameNotFound { username: String },
     #[error("username too long")]
     UsernameTooLong,
@@ -43,7 +43,7 @@ impl AuthError {
         use AuthError::*;
 
         match self {
-            UsernameNotFound { .. } | UsernameTooLong | PasswordInvalid | PasswordTooLong => (
+            UsernameTooLong | PasswordInvalid | PasswordTooLong => (
                 StatusCode::UNAUTHORIZED,
                 ClientError::UsernameOrPasswordInvalid,
             ),

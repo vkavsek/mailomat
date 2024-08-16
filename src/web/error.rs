@@ -26,6 +26,9 @@ pub enum Error {
 
     #[error("sqlx error: {0}")]
     Sqlx(#[from] sqlx::Error),
+
+    #[error("unexpected error: {0}")]
+    UnexpectedError(#[from] anyhow::Error),
 }
 
 impl Error {
@@ -45,8 +48,6 @@ impl Error {
                 StatusCode::BAD_REQUEST,
                 ClientError::InputInvalid(er.to_string()),
             ),
-            //  => {
-            // }
             _ => (StatusCode::INTERNAL_SERVER_ERROR, ClientError::ServiceError),
         }
     }

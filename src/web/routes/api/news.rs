@@ -7,6 +7,7 @@ use crate::{
 };
 use axum::{extract::State, http::HeaderMap, Json};
 use secrecy::SecretString;
+use tracing::info;
 use uuid::Uuid;
 
 use crate::{
@@ -26,7 +27,7 @@ pub enum NewsError {
     EmailClient(#[from] crate::email_client::Error),
 }
 
-#[tracing::instrument(name = "publishing newsletter issue", skip(headers, app_state, news))]
+#[tracing::instrument(name = "Publishing newsletter issue", skip(headers, app_state, news))]
 pub async fn news_publish(
     headers: HeaderMap,
     State(app_state): State<AppState>,
@@ -80,6 +81,7 @@ pub async fn news_publish(
             .map_err(NewsError::EmailClient)?;
     }
 
+    info!("Batch email succesfully sent!");
     Ok(())
 }
 
@@ -97,11 +99,23 @@ pub async fn news_authenticate(
     .fetch_optional(dm.db())
     .await?;
 
-    let (user_id, expected_pwd_hash) = user_id_n_pwd_hash.ok_or(AuthError::UsernameNotFound {
-        username: credentials.username,
-    })?;
-
-    password::validate_async(credentials.password, expected_pwd_hash).await?;
+    // Validate Password
+    let mut hash = r#"$argon2id$v=19$m=19456,t=2,p=1$DqfdT4sWTiKO8R19hTTtyg$DWeO60WYNYRhAdju0/dzYNhrtmb0jZ6+/ceCHyNKNfk"#.to_string();
+    let (user_id, expected_pwd_hash) = user_id_n_pwd_hash.unwrap_or_default();
+    // Uuid defaults to NIL - all zeroes.
+    // If user_id is NIL we check against the default hash which should always fail.
+    if !user_id.is_nil() {
+        hash = expected_pwd_hash;
+    }
+    password::validate_async(credentials.password, SecretString::new(hash)).await?;
+    // This should theoretically never happen, since the password validation should fail if the
+    // user doesn't exist.
+    if user_id.is_nil() {
+        return Err(AuthError::UsernameNotFound {
+            username: credentials.username,
+        });
+    }
+    info!("Succesfull authentication!");
 
     Ok(user_id)
 }

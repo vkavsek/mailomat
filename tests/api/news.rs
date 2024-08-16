@@ -1,5 +1,6 @@
-use crate::helpers::TestApp;
+use crate::helpers::{api_news_post_appless, TestApp};
 use anyhow::Result;
+use uuid::Uuid;
 use wiremock::{
     matchers::{any, method, path},
     Mock, ResponseTemplate,
@@ -75,6 +76,36 @@ async fn api_news_delivered_to_confirmed_subscriber() -> Result<()> {
 }
 
 #[tokio::test]
+async fn api_news_delivered_to_confirmed_subscriber_without_blocking() -> Result<()> {
+    let app = TestApp::spawn().await?;
+    app.subscriber_confirmed_create().await?;
+
+    Mock::given(path("/email/batch"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        // Will fail if no requests are received
+        .expect(100)
+        .mount(&app.email_server)
+        .await;
+
+    let mut set = tokio::task::JoinSet::new();
+    for _ in 0..100 {
+        let test_user = app.test_user.clone();
+        let addr = app.addr;
+
+        let http_client = app.http_client.clone();
+        set.spawn(async move { api_news_post_appless(&test_user, &addr, http_client).await });
+    }
+
+    while let Some(res) = set.join_next().await {
+        let res = res??;
+        assert_eq!(res.status().as_u16(), 200);
+    }
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn api_news_invalid_data_422() -> Result<()> {
     let app = TestApp::spawn().await?;
     let test_cases = [
@@ -120,6 +151,63 @@ async fn api_news_requests_missing_authorization_are_rejected() -> Result<()> {
         resp.headers()["WWW-Authenticate"],
         r#"Basic realm="publish""#
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn api_news_non_existing_user_rejected() -> Result<()> {
+    let app = TestApp::spawn().await?;
+    let username = Uuid::new_v4();
+    let password = Uuid::new_v4();
+
+    let response = app
+        .http_client
+        .post(&format!("http://{}/api/news", &app.addr))
+        .basic_auth(username, Some(password))
+        .json(&serde_json::json!({
+            "title": "Title",
+            "content": {
+                "text": "Hello",
+                "html": "<p>hello</p>",
+            }
+        }))
+        .send()
+        .await?;
+
+    assert_eq!(response.status().as_u16(), 401);
+    assert_eq!(
+        response.headers()["WWW-Authenticate"],
+        r#"Basic realm="publish""#
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn api_news_invalid_password_rejected() -> Result<()> {
+    let app = TestApp::spawn().await?;
+    let password = Uuid::new_v4();
+
+    let response = app
+        .http_client
+        .post(&format!("http://{}/api/news", &app.addr))
+        .basic_auth(app.test_user.username, Some(password))
+        .json(&serde_json::json!({
+            "title": "Title",
+            "content": {
+                "text": "Hello",
+                "html": "<p>hello</p>",
+            }
+        }))
+        .send()
+        .await?;
+
+    assert_eq!(response.status().as_u16(), 401);
+    assert_eq!(
+        response.headers()["WWW-Authenticate"],
+        r#"Basic realm="publish""#
+    );
+
     Ok(())
 }
 

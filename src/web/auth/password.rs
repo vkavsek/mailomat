@@ -19,10 +19,13 @@ pub fn get_argon2() -> &'static Argon2<'static> {
     })
 }
 
+/// Async wrapper around hash_new_to_string(), spawns a new blocking task.
+///
+/// Tries to create a new `PasswordHash` from the user-provided `raw_password` and newly created
+/// password salt and returns a Result containing a `String` representation of the created password hash.
 pub async fn hash_new_to_string_async(raw_password: SecretString) -> Result<String> {
     tokio::task::spawn_blocking(move || hash_new_to_string(raw_password)).await?
 }
-
 pub fn hash_new_to_string(raw_password: SecretString) -> Result<String> {
     let argon2 = get_argon2();
 
@@ -37,13 +40,17 @@ pub fn hash_new_to_string(raw_password: SecretString) -> Result<String> {
     Ok(hashed)
 }
 
-pub async fn validate_async(raw_password: SecretString, pwd_hash: String) -> Result<()> {
-    tokio::task::spawn_blocking(move || validate(raw_password, &pwd_hash)).await?
+/// Async wrapper around validate(), spawns a new blocking task.
+///
+/// Tries to validate the user-provided `raw_password` using the `pwd_hash_ref` which MUST be
+/// parsable to `PasswordHash`!
+pub async fn validate_async(raw_password: SecretString, pwd_hash: SecretString) -> Result<()> {
+    tokio::task::spawn_blocking(move || validate(raw_password, pwd_hash)).await?
 }
-pub fn validate(raw_password: SecretString, pwd_hash_ref: &str) -> Result<()> {
+pub fn validate(raw_password: SecretString, pwd_hash_ref: SecretString) -> Result<()> {
     let argon2 = get_argon2();
 
-    let parsed_hash = PasswordHash::new(pwd_hash_ref)?;
+    let parsed_hash = PasswordHash::new(pwd_hash_ref.expose_secret().as_str())?;
 
     argon2
         .verify_password(raw_password.expose_secret().as_bytes(), &parsed_hash)
@@ -70,19 +77,19 @@ mod tests {
     #[test]
     fn pwd_hashing_and_validate_ok() -> Result<()> {
         let password = SecretString::new(fake_valid_pwd());
-        let hashed = hash_new_to_string(password.clone())?;
+        let hashed = SecretString::new(hash_new_to_string(password.clone())?);
 
-        validate(password, &hashed)?;
+        validate(password, hashed)?;
         Ok(())
     }
 
     #[test]
     fn pwd_hashing_and_validate_not_ok() -> Result<()> {
         let password = SecretString::new(fake_valid_pwd());
-        let hashed = hash_new_to_string(password.clone())?;
+        let hashed = SecretString::new(hash_new_to_string(password.clone())?);
         let new_password = SecretString::new(fake_valid_pwd());
 
-        let res = validate(new_password, &hashed);
+        let res = validate(new_password, hashed);
 
         assert_err!(res);
 

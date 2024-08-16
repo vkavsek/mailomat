@@ -1,4 +1,5 @@
 pub mod api;
+pub mod home;
 
 use axum::{
     http::StatusCode,
@@ -15,7 +16,9 @@ async fn health_check() -> StatusCode {
 /// All the routes of the server
 pub fn routes(app_state: AppState) -> Router {
     Router::new()
-        .nest("/api", api_routes(app_state.clone()))
+        .route("/", get(home::home))
+        .with_state(app_state.clone())
+        .nest("/api", api_routes(app_state))
         .route("/health-check", get(health_check))
 }
 

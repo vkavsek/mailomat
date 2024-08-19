@@ -176,7 +176,8 @@ impl TestApp {
         Ok(ConfirmationLink { html, plain_text })
     }
 
-    /// Create new subscriber with: NAME - *John Doe*, EMAIL - *john.doe@example.com*
+    /// Create new subscriber with a random name and a matching email:
+    /// Name Surname, name_surname@email_provider.com
     /// Returns confirmation links required to confirm this subscriber and the subscriber's info.
     pub async fn subscriber_unconfirmed_create(
         &self,
@@ -212,8 +213,7 @@ impl TestApp {
         Ok((links, valid_sub))
     }
 
-    /// Create new subscriber with: NAME - *John Doe*, EMAIL - *john.doe@example.com*
-    /// and confirm it. Returns the info of the subscriber that was just added and confirmed.
+    /// Create new subscriber and confirm it. Returns the info of the subscriber that was just added and confirmed.
     pub async fn subscriber_confirmed_create(&self) -> Result<ValidSubscriber> {
         let (links, subscriber) = self.subscriber_unconfirmed_create().await?;
         self.http_client
@@ -250,7 +250,7 @@ async fn test_database_create_migrate(config: &AppConfig) -> Result<()> {
     // Create pool only used to migrate the DB
     let db_pool = PgPoolOptions::new()
         .max_connections(1)
-        .acquire_timeout(Duration::from_millis(1000))
+        .acquire_timeout(Duration::from_millis(5000))
         .connect_with(db_config.connection_options())
         .await?;
     // Migrate DB

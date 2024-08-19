@@ -3,7 +3,6 @@
 
 use derive_more::Deref;
 use rand::{thread_rng, RngCore};
-use secrecy::SecretString;
 use serde::Deserialize;
 use unicode_segmentation::UnicodeSegmentation;
 use validator::ValidateEmail;
@@ -13,12 +12,6 @@ use crate::utils;
 // ###################################
 // ->   STRUCTS
 // ###################################
-#[derive(Debug)]
-pub struct UserCredentials {
-    pub username: String,
-    pub password: SecretString,
-}
-
 /// A deserializable struct that contains the data of the newsletter to be sent to the subscribers
 #[derive(Debug, Deserialize)]
 pub struct News {
@@ -69,11 +62,6 @@ pub struct SubscriptionToken(String);
 // ###################################
 // ->   IMPLS
 // ###################################
-impl UserCredentials {
-    pub fn new(username: String, password: SecretString) -> Self {
-        UserCredentials { username, password }
-    }
-}
 impl SubscriptionToken {
     /// Generates an array of 64 random bytes and encodes it to Base64-URL without padding
     pub fn generate() -> Self {

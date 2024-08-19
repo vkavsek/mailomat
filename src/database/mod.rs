@@ -13,12 +13,10 @@ pub struct DbManager {
 impl DbManager {
     pub async fn init(config: &AppConfig) -> Result<Self> {
         info!("{:<20} - Initializing the DB pool", "init_db");
-        let max_cons = if cfg!(test) { 1 } else { 5 };
-
         let con_opts = config.db_config.connection_options();
 
         let db_pool = PgPoolOptions::new()
-            .max_connections(max_cons)
+            .max_connections(5)
             .acquire_timeout(Duration::from_millis(500))
             .connect_with(con_opts)
             .await

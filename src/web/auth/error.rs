@@ -43,7 +43,7 @@ impl AuthError {
         use AuthError::*;
 
         match self {
-            UsernameTooLong | PasswordInvalid | PasswordTooLong => (
+            UsernameTooLong | PasswordInvalid | PasswordTooLong | UsernameNotFound { .. } => (
                 StatusCode::UNAUTHORIZED,
                 ClientError::UsernameOrPasswordInvalid,
             ),

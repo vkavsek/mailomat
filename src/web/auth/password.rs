@@ -42,7 +42,7 @@ pub fn hash_new_to_string(raw_password: SecretString) -> Result<String> {
 
 /// Async wrapper around validate(), spawns a new blocking task.
 ///
-/// Tries to validate the user-provided `raw_password` using the `pwd_hash_ref` which MUST be
+/// Tries to validate the user-provided `raw_password` using the `pwd_hash` which MUST be
 /// parsable to `PasswordHash`!
 pub async fn validate_async(raw_password: SecretString, pwd_hash: SecretString) -> Result<()> {
     tokio::task::spawn_blocking(move || validate(raw_password, pwd_hash)).await?

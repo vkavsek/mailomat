@@ -1,18 +1,9 @@
-use crate::{
-    database::DbManager,
-    web::{
-        auth::{self, password, AuthError},
-        data::UserCredentials,
-    },
-};
 use axum::{extract::State, http::HeaderMap, Json};
-use secrecy::SecretString;
 use tracing::info;
-use uuid::Uuid;
 
 use crate::{
     web::{
-        self,
+        self, auth,
         data::{News, ValidEmail},
         WebResult,
     },
@@ -33,10 +24,11 @@ pub async fn news_publish(
     State(app_state): State<AppState>,
     Json(news): Json<News>,
 ) -> WebResult<()> {
-    let creds = auth::basic_schema_user_credentials_from_header_map(headers)
+    let creds = auth::credentials_from_header_map_basic_schema(headers)
         .await
         .map_err(NewsError::Auth)?;
-    news_authenticate(creds, &app_state.database_mgr)
+    creds
+        .authenticate(&app_state.database_mgr)
         .await
         .map_err(NewsError::Auth)?;
 
@@ -83,39 +75,4 @@ pub async fn news_publish(
 
     info!("Batch email succesfully sent!");
     Ok(())
-}
-
-pub async fn news_authenticate(
-    credentials: UserCredentials,
-    dm: &DbManager,
-) -> Result<Uuid, AuthError> {
-    let user_id_n_pwd_hash: Option<(Uuid, String)> = sqlx::query_as(
-        r#"
-    SELECT user_id, password_hash FROM users
-    WHERE username = $1
-    "#,
-    )
-    .bind(&credentials.username)
-    .fetch_optional(dm.db())
-    .await?;
-
-    // Validate Password
-    let mut hash = r#"$argon2id$v=19$m=19456,t=2,p=1$DqfdT4sWTiKO8R19hTTtyg$DWeO60WYNYRhAdju0/dzYNhrtmb0jZ6+/ceCHyNKNfk"#.to_string();
-    let (user_id, expected_pwd_hash) = user_id_n_pwd_hash.unwrap_or_default();
-    // Uuid defaults to NIL - all zeroes.
-    // If user_id is NIL we check against the default hash which should always fail.
-    if !user_id.is_nil() {
-        hash = expected_pwd_hash;
-    }
-    password::validate_async(credentials.password, SecretString::new(hash)).await?;
-    // This should theoretically never happen, since the password validation should fail if the
-    // user doesn't exist.
-    if user_id.is_nil() {
-        return Err(AuthError::UsernameNotFound {
-            username: credentials.username,
-        });
-    }
-    info!("Succesfull authentication!");
-
-    Ok(user_id)
 }

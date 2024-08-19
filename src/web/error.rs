@@ -6,6 +6,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use routes::login::LoginError;
 use std::sync::Arc;
 use strum_macros::AsRefStr;
 
@@ -23,6 +24,8 @@ pub enum Error {
     Subscribe(#[from] routes::api::subscribe::SubscribeError),
     #[error("api subscribe confirm error: {0}")]
     SubscribeConfirm(#[from] routes::api::subscribe_confirm::SubscribeConfirmError),
+    #[error("login error: {0}")]
+    Login(#[from] routes::login::LoginError),
 
     #[error("sqlx error: {0}")]
     Sqlx(#[from] sqlx::Error),
@@ -39,7 +42,9 @@ impl Error {
         use Error::*;
 
         match self {
-            News(NewsError::Auth(e)) => e.status_code_and_client_error(),
+            News(NewsError::Auth(e)) | Login(LoginError::Auth(e)) => {
+                e.status_code_and_client_error()
+            }
             SubscribeConfirm(SubscribeConfirmError::SubTokenInDbNotFound) => {
                 (StatusCode::UNAUTHORIZED, ClientError::Unauthorized)
             }

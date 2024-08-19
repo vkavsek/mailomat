@@ -1,8 +1,5 @@
 //! The configuration structs used to build the AppConfig, and their impls.
-use std::{
-    collections::{hash_map::Entry, HashMap},
-    io::Read,
-};
+use std::collections::HashMap;
 
 use lazy_regex::regex_captures;
 use secrecy::{ExposeSecret, SecretString};
@@ -81,52 +78,6 @@ impl EmailConfig {
     }
     pub fn timeout(&self) -> std::time::Duration {
         std::time::Duration::from_millis(self.timeout_millis)
-    }
-}
-
-impl AppConfig {
-    pub fn init() -> AppConfigBuilder {
-        AppConfigBuilder::default()
-    }
-}
-
-/// Not currently used.
-/// TODO: Remove
-impl AppConfigBuilder {
-    /// Extends this `AppConfigBuilder` with the contents of `other` builder.
-    fn extend_builder(&mut self, other: Self) {
-        for (entry, entry_hm) in other.0 {
-            if let Entry::Vacant(e) = self.0.entry(entry.clone()) {
-                e.insert(entry_hm);
-            } else {
-                let target_hm = self.0.get_mut(&entry).expect("Checked above!");
-                for (inner_entry, inner_value) in entry_hm {
-                    target_hm.insert(inner_entry, inner_value);
-                }
-            }
-        }
-    }
-
-    /// Panics if file reading or deserialization goes wrong.
-    pub fn add_source_file(mut self, mut file: std::fs::File) -> Self {
-        let mut file_content = String::new();
-
-        if let Err(e) = file.read_to_string(&mut file_content) {
-            panic!("Fatal Error: Building config: {e}");
-        }
-
-        let app_conf_builder: AppConfigBuilder = toml::from_str(&file_content)
-            .unwrap_or_else(|e| panic!("Fatal Error: Building config: {e}"));
-
-        self.extend_builder(app_conf_builder);
-
-        self
-    }
-
-    pub fn build(self) -> ConfigResult<AppConfig> {
-        let serialized = toml::to_string(&self)?;
-        let app_config = toml::from_str(&serialized)?;
-        Ok(app_config)
     }
 }
 
@@ -222,30 +173,7 @@ impl TryFrom<&str> for DbConfig {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::File;
-
-    use claims::assert_ok;
-
     use super::*;
-
-    /// Not currently used.
-    /// TODO: Remove
-    #[test]
-    fn app_config_add_source_and_build_ok() -> ConfigResult<()> {
-        let base_path = std::env::current_dir().expect("Failed to determine the current DIR.");
-        let config_dir = base_path.join("config");
-        let base_file = File::open(config_dir.join("base.toml"))?;
-        let local_file = File::open(config_dir.join("local.toml"))?;
-
-        let test_app_config = AppConfig::init()
-            .add_source_file(base_file)
-            .add_source_file(local_file)
-            .build();
-
-        assert_ok!(test_app_config);
-
-        Ok(())
-    }
 
     #[test]
     fn db_config_from_str_ok() -> ConfigResult<()> {

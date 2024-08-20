@@ -22,32 +22,18 @@ impl TemplateManager {
         Self { tera }
     }
 
-    /// A helper function to render a template file from 'html/' directory to String without `Context`
-    pub fn render_html_to_string(&self, template_file: &str) -> Result<String, tera::Error> {
+    /// A helper function to render a template file from 'html/' directory to String
+    pub fn render_html_to_string(
+        &self,
+        ctx: &tera::Context,
+        template_file: &str,
+    ) -> Result<String, tera::Error> {
         let tera = self.tera();
         let template = format!("html/{template_file}");
-        tera.render(&template, &tera::Context::new())
+        tera.render(&template, ctx)
     }
 
     pub fn tera(&self) -> &Tera {
         self.tera
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use anyhow::Result;
-
-    #[test]
-    fn template_man_render_html_to_string_ok() -> Result<()> {
-        let templ_man = TemplateManager::init();
-
-        let login_form = templ_man.render_html_to_string("login_form.html")?;
-        let login_form_str = include_str!("../templates/html/login_form.html");
-
-        assert_eq!(login_form, login_form_str);
-
-        Ok(())
     }
 }

@@ -1,5 +1,5 @@
 [net_config]
-host = [127, 0, 0, 1]
+host = [0, 0, 0, 0]
 base_url = "http://127.0.0.1"
 
 # Possible values: Disable, Require, Prefer

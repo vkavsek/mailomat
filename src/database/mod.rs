@@ -16,8 +16,8 @@ impl DbManager {
         let con_opts = config.db_config.connection_options();
 
         let db_pool = PgPoolOptions::new()
-            .max_connections(5)
-            .acquire_timeout(Duration::from_millis(500))
+            .max_connections(10)
+            .acquire_timeout(Duration::from_millis(5000))
             .connect_with(con_opts)
             .await
             .map_err(|_| Error::FailToCreatePool)?;

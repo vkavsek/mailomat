@@ -59,7 +59,6 @@ pub async fn news_publish(
     tracing::debug!("{subscribers:?}");
 
     if !subscribers.is_empty() {
-        // info!("sending newsletter - user: {}, id: {}", username, user_id);
         // Send batch email newsletter to the subscribers
         app_state
             .email_client

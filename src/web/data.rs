@@ -25,12 +25,6 @@ pub struct NewsContent {
     pub html: String,
 }
 
-/// A deserializable struct that contains the `subscription_token` to be deserialized from the query
-#[derive(Debug, Deserialize, Deref)]
-pub struct SubscribeConfirmQuery {
-    pub subscription_token: String,
-}
-
 /// Deserializable Subscriber
 /// A Subscriber that can be Deserialized but can have invalid fields
 #[derive(Debug, Deserialize)]
@@ -59,6 +53,19 @@ pub struct ValidName(String);
 #[derive(Debug, Deref)]
 pub struct SubscriptionToken(String);
 
+/// A deserializable struct that contains the `subscription_token` to be deserialized from the query
+#[derive(Debug, Deserialize, Deref)]
+pub struct SubscribeConfirmQuery {
+    pub subscription_token: String,
+}
+
+/// A deserializable struct that contains the base64-url encoded string representation of `ClientError`
+/// to be deserialized from the query
+#[derive(Debug, Deserialize, Deref)]
+pub struct QueryError {
+    pub error: Option<String>,
+}
+
 // ###################################
 // ->   IMPLS
 // ###################################
@@ -78,7 +85,8 @@ impl SubscriptionToken {
     {
         let value = value.as_ref();
 
-        if value.chars().count() != 86 || utils::b64u_decode(value).is_err() {
+        let decoded = utils::b64u_decode(value);
+        if decoded.is_err() || decoded.is_ok_and(|v| v.len() != 64) {
             return Err(DataParsingError::SubscriberTokenInvalid(value.to_string()));
         }
 

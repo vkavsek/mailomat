@@ -10,7 +10,7 @@ pub enum AuthError {
     UsernameNotFound { username: String },
     #[error("username too long")]
     UsernameTooLong,
-    #[error("invalid password - doesn't match the user's password from the table")]
+    #[error("invalid password")]
     PasswordInvalid,
     #[error("password too long")]
     PasswordTooLong,

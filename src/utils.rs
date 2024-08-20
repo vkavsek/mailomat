@@ -34,6 +34,11 @@ pub fn b64u_decode(v: &str) -> Result<Vec<u8>> {
         .map_err(|er| B64DecodeError::B64uDecode(er.to_string()))
 }
 
+/// Base64 decode to String
+pub fn b64u_decode_to_string(v: &str) -> Result<String> {
+    String::from_utf8(b64u_decode(v)?).map_err(|er| B64DecodeError::B64uDecode(er.to_string()))
+}
+
 // ###################################
 // ->   ERROR
 // ###################################

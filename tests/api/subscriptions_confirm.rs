@@ -2,7 +2,6 @@ use anyhow::Result;
 use mailomat::web::data::SubscriptionToken;
 use reqwest::{StatusCode, Url};
 use serde_json::json;
-use serial_test::serial;
 use wiremock::{
     matchers::{method, path},
     Mock, ResponseTemplate,
@@ -10,7 +9,6 @@ use wiremock::{
 
 use crate::helpers::{ConfirmationLink, TestApp};
 
-#[serial]
 #[tokio::test]
 async fn api_subscribe_confirm_without_token_rejected_with_400() -> Result<()> {
     let app = TestApp::spawn().await?;
@@ -26,7 +24,6 @@ async fn api_subscribe_confirm_without_token_rejected_with_400() -> Result<()> {
     Ok(())
 }
 
-#[serial]
 #[tokio::test]
 async fn api_subscribe_confirm_link_returned_by_subscribe_returns_200() -> Result<()> {
     let app = TestApp::spawn().await?;
@@ -51,7 +48,6 @@ async fn api_subscribe_confirm_link_returned_by_subscribe_returns_200() -> Resul
     Ok(())
 }
 
-#[serial]
 #[tokio::test]
 async fn api_subscribe_confirm_successful_confirmation_of_subscription() -> Result<()> {
     let app = TestApp::spawn().await?;
@@ -69,7 +65,6 @@ async fn api_subscribe_confirm_successful_confirmation_of_subscription() -> Resu
     Ok(())
 }
 
-#[serial]
 #[tokio::test]
 async fn api_subscribe_confirm_duplicated_confirmation_request_returns_200() -> Result<()> {
     let app = TestApp::spawn().await?;
@@ -88,7 +83,6 @@ async fn api_subscribe_confirm_duplicated_confirmation_request_returns_200() -> 
     Ok(())
 }
 
-#[serial]
 #[tokio::test]
 async fn api_subscribe_confirm_correctly_formed_non_existent_token_returns_401() -> Result<()> {
     let app = TestApp::spawn().await?;
@@ -107,7 +101,6 @@ async fn api_subscribe_confirm_correctly_formed_non_existent_token_returns_401()
     Ok(())
 }
 
-#[serial]
 #[tokio::test]
 async fn api_subscribe_confirm_invalid_sub_token_returns_400() -> Result<()> {
     let app = TestApp::spawn().await?;

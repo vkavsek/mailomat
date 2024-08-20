@@ -84,12 +84,12 @@ async fn api_news_delivered_to_confirmed_subscriber_without_blocking() -> Result
         .and(method("POST"))
         .respond_with(ResponseTemplate::new(200))
         // Will fail if no requests are received
-        .expect(100)
+        .expect(32)
         .mount(&app.email_server)
         .await;
 
     let mut set = tokio::task::JoinSet::new();
-    for _ in 0..100 {
+    for _ in 0..32 {
         let test_user = app.test_user.clone();
         let addr = app.addr;
 

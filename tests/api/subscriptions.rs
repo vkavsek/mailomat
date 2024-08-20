@@ -1,7 +1,6 @@
 use anyhow::Result;
 use reqwest::StatusCode;
 use serde_json::json;
-use serial_test::serial;
 use wiremock::{
     matchers::{method, path},
     Mock, ResponseTemplate,
@@ -9,7 +8,6 @@ use wiremock::{
 
 use crate::helpers::TestApp;
 
-#[serial]
 #[tokio::test]
 async fn api_subscribe_returns_200_for_valid_json() -> Result<()> {
     let app = TestApp::spawn().await?;
@@ -39,7 +37,6 @@ async fn api_subscribe_returns_200_for_valid_json() -> Result<()> {
     Ok(())
 }
 
-#[serial]
 #[tokio::test]
 async fn api_subscribe_persists_the_new_subscriber() -> Result<()> {
     let app = TestApp::spawn().await?;
@@ -71,7 +68,6 @@ async fn api_subscribe_persists_the_new_subscriber() -> Result<()> {
     Ok(())
 }
 
-#[serial]
 #[tokio::test]
 async fn api_subscribe_unprocessable_entity() -> Result<()> {
     let app = TestApp::spawn().await?;
@@ -107,7 +103,6 @@ async fn api_subscribe_unprocessable_entity() -> Result<()> {
     Ok(())
 }
 
-#[serial]
 #[tokio::test]
 async fn api_subscribe_returns_a_400_when_fields_are_present_but_invalid() -> Result<()> {
     let app = TestApp::spawn().await?;
@@ -149,7 +144,6 @@ async fn api_subscribe_returns_a_400_when_fields_are_present_but_invalid() -> Re
     Ok(())
 }
 
-#[serial]
 #[tokio::test]
 async fn api_subscribe_duplicated_subscription_still_returns_200() -> Result<()> {
     let app = TestApp::spawn().await?;
@@ -173,7 +167,6 @@ async fn api_subscribe_duplicated_subscription_still_returns_200() -> Result<()>
     Ok(())
 }
 
-#[serial]
 #[tokio::test]
 async fn api_subscribe_sends_a_confirmation_email_for_valid_data() -> Result<()> {
     let app = TestApp::spawn().await?;
@@ -196,7 +189,6 @@ async fn api_subscribe_sends_a_confirmation_email_for_valid_data() -> Result<()>
     Ok(())
 }
 
-#[serial]
 #[tokio::test]
 async fn api_subscribe_sends_a_confirmation_email_with_a_link() -> Result<()> {
     let app = TestApp::spawn().await?;
@@ -207,7 +199,6 @@ async fn api_subscribe_sends_a_confirmation_email_with_a_link() -> Result<()> {
     Ok(())
 }
 
-#[serial]
 #[tokio::test]
 async fn api_subscribe_fails_if_there_is_a_fatal_db_error() -> Result<()> {
     let app = TestApp::spawn().await?;

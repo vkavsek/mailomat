@@ -67,10 +67,9 @@ features = [
 ]
 
 [dev-dependencies]
+wiremock = "0.6"
 claims = "0.7"
 fake = "2.9"
 quickcheck = "1"
 quickcheck_macros = "1"
-wiremock = "0.6"
 linkify = "0.10"
-serial_test = "3"

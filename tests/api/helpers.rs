@@ -16,6 +16,7 @@ use reqwest::Client;
 use secrecy::SecretString;
 use serde_json::{json, Value};
 use sqlx::{postgres::PgPoolOptions, Connection, PgConnection};
+use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
 use wiremock::{
@@ -229,10 +230,15 @@ impl TestApp {
 fn init_test_subscriber() {
     static SUBSCRIBER: OnceLock<()> = OnceLock::new();
     SUBSCRIBER.get_or_init(|| {
+        let env_filter = EnvFilter::builder()
+            .with_default_directive(LevelFilter::INFO.into())
+            .with_env_var("TEST_LOG")
+            .from_env_lossy();
+
         tracing_subscriber::fmt()
             .without_time()
             .with_target(false)
-            .with_env_filter(EnvFilter::from_env("TEST_LOG"))
+            .with_env_filter(env_filter)
             .compact()
             .init();
     });

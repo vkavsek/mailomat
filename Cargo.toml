@@ -39,6 +39,9 @@ tera = "1"
 figment = { version = "0.10", features = ["env", "toml"] }
 # Password Hashing 
 argon2 = { version = "0.5", features = ["std"] }
+# Message Authentication Codes
+hmac = { version = "0.12", features = ["std"] }
+sha2 = "0.10"
 # Errors
 thiserror = "1"
 anyhow = "1"

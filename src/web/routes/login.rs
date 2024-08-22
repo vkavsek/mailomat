@@ -1,5 +1,5 @@
 use crate::{
-    utils::{self, b64u_decode_to_string, b64u_encode},
+    utils::{self, b64u_decode_to_string},
     web::{
         auth::{self, Credentials},
         data::QueryError,
@@ -51,35 +51,21 @@ pub async fn login(
     State(app_state): State<AppState>,
     Form(user_creds): Form<Credentials>,
 ) -> WebResult<Response> {
-    let result_user_id = user_creds.authenticate(&app_state.database_mgr).await;
+    // If we get an authentication error redirect is inserted to headers in response mapper
+    let user_id = user_creds
+        .authenticate(&app_state.database_mgr)
+        .await
+        .map_err(LoginError::Auth)?;
 
-    // If we get an authentication error redirect back to the login form but insert the client
-    // error as a query parameter in the request so it can be displayed to the user.
     // Otherwise redirect user to the home page.
     let mut resp = StatusCode::SEE_OTHER.into_response();
-    if let Err(e) = &result_user_id {
-        let (_, client_error) = e.status_code_and_client_error();
-        let b64u_client_error_str = b64u_encode(client_error.to_string().as_bytes());
-        insert_location_into_response(
-            &mut resp,
-            &format!("/login?error={}", b64u_client_error_str),
-        )?;
-    } else {
-        insert_location_into_response(&mut resp, "/")?;
-    };
-
-    // TODO: keep logged in
-
-    info!("user id: {:?}", result_user_id.ok());
-    Ok(resp)
-}
-
-fn insert_location_into_response(resp: &mut Response, location: &str) -> WebResult<()> {
     resp.headers_mut().insert(
         axum::http::header::LOCATION,
-        location
-            .parse()
+        "/".parse()
             .context("login: failed to parse location as header value")?,
     );
-    Ok(())
+    // TODO: keep logged in
+
+    info!("user id: {:?}", user_id);
+    Ok(resp)
 }

@@ -34,7 +34,8 @@ impl Credentials {
         )
         .bind(&self.username)
         .fetch_optional(dm.db())
-        .await?;
+        .await
+        .map_err(|er| anyhow::anyhow!("authenticating credentials: {}", er))?;
 
         // Validate Password
         let mut hash = r#"$argon2id$v=19$m=19456,t=2,p=1$DqfdT4sWTiKO8R19hTTtyg$DWeO60WYNYRhAdju0/dzYNhrtmb0jZ6+/ceCHyNKNfk"#.to_string();
@@ -74,7 +75,8 @@ pub async fn credentials_from_header_map_basic_schema(
                 .ok_or(AuthError::WrongAuthSchema {
                     schema: "Basic".to_string(),
                 })?;
-        let decoded_creds = b64_decode_to_string(b64_encoded_seg)?;
+        let decoded_creds = b64_decode_to_string(b64_encoded_seg)
+            .map_err(|er| anyhow::anyhow!("credentials from header map: {}", er))?;
         let Some((uname, pass)) = decoded_creds.split_once(':') else {
             return Err(AuthError::MissingColon);
         };
@@ -87,7 +89,8 @@ pub async fn credentials_from_header_map_basic_schema(
 
         Ok(Credentials::new(uname.into(), pass.to_string().into()))
     })
-    .await?
+    .await
+    .map_err(|er| anyhow::anyhow!("credentials from header map: {}", er))?
 }
 
 #[cfg(test)]

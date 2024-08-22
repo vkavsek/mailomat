@@ -44,7 +44,7 @@ pub async fn serve(app: App) -> Result<()> {
 
     let trace_layer = build_trace_layer();
 
-    let app = Router::new().merge(routes(app_state)).layer(
+    let app = Router::new().merge(routes(app_state.clone())).layer(
         ServiceBuilder::new()
             // Set UUID per request
             .layer(SetRequestIdLayer::new(
@@ -55,7 +55,10 @@ pub async fn serve(app: App) -> Result<()> {
             // This has to be in front of the Propagation layer because while the request goes through
             // middleware as listed in the ServiceBuilder, the response goes through the middleware stack from the bottom up.
             // If we want the response mapper to find the Propagated header that middleware has to run first!
-            .layer(middleware::map_response(midware::response_mapper))
+            .layer(middleware::map_response_with_state(
+                app_state,
+                midware::error_handle_response_mapper,
+            ))
             // Propagate UUID to response, keep it last so it processes the response first!
             .layer(PropagateRequestIdLayer::new(x_request_id)),
     );

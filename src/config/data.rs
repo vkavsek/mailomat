@@ -35,11 +35,12 @@ pub struct AppConfig {
     pub email_config: EmailConfig,
 }
 
-#[derive(Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Clone, Debug)]
 pub struct NetConfig {
     pub host: [u8; 4],
     pub app_port: u16,
     pub base_url: String,
+    pub secret_key: SecretString,
 }
 
 #[derive(Deserialize, Clone, Debug)]

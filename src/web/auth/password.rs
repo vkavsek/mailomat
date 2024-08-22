@@ -24,7 +24,9 @@ pub fn get_argon2() -> &'static Argon2<'static> {
 /// Tries to create a new `PasswordHash` from the user-provided `raw_password` and newly created
 /// password salt and returns a Result containing a `String` representation of the created password hash.
 pub async fn hash_new_to_string_async(raw_password: SecretString) -> Result<String> {
-    tokio::task::spawn_blocking(move || hash_new_to_string(raw_password)).await?
+    tokio::task::spawn_blocking(move || hash_new_to_string(raw_password))
+        .await
+        .map_err(|er| anyhow::anyhow!("password hashing: {}", er))?
 }
 pub fn hash_new_to_string(raw_password: SecretString) -> Result<String> {
     let argon2 = get_argon2();
@@ -45,7 +47,9 @@ pub fn hash_new_to_string(raw_password: SecretString) -> Result<String> {
 /// Tries to validate the user-provided `raw_password` using the `pwd_hash` which MUST be
 /// parsable to `PasswordHash`!
 pub async fn validate_async(raw_password: SecretString, pwd_hash: SecretString) -> Result<()> {
-    tokio::task::spawn_blocking(move || validate(raw_password, pwd_hash)).await?
+    tokio::task::spawn_blocking(move || validate(raw_password, pwd_hash))
+        .await
+        .map_err(|er| anyhow::anyhow!("password hashing: {}", er))?
 }
 pub fn validate(raw_password: SecretString, pwd_hash_ref: SecretString) -> Result<()> {
     let argon2 = get_argon2();

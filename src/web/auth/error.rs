@@ -31,12 +31,8 @@ pub enum AuthError {
 
     #[error("password_hash error: {0}")]
     PasswordHash(#[from] argon2::password_hash::Error),
-    #[error("sqlx error: {0}")]
-    Sqlx(#[from] sqlx::Error),
-    #[error("base64 decoding error: {0}")]
-    Base64Decode(#[from] crate::utils::B64DecodeError),
-    #[error("tokio join error: {0}")]
-    TokioJoin(#[from] tokio::task::JoinError),
+    #[error("unexpected error: {0}")]
+    UnexpectedError(#[from] anyhow::Error),
 }
 impl AuthError {
     pub fn status_code_and_client_error(&self) -> (StatusCode, ClientError) {

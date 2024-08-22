@@ -1,5 +1,6 @@
 pub mod serve;
 
+use secrecy::SecretString;
 pub use serve::serve;
 
 use derive_more::Deref;
@@ -26,20 +27,26 @@ impl App {
         }
     }
 
-    pub async fn build_from_config(config: &AppConfig) -> Result<Self> {
+    pub async fn build_from_config(config: AppConfig) -> Result<Self> {
         let email_addr = config.email_config.valid_sender()?;
 
-        let email_client = EmailClient::new(
-            config.email_config.url.clone(),
-            email_addr,
-            config.email_config.auth_token.clone(),
-            config.email_config.timeout(),
-        )?;
+        let dm = DbManager::init(&config).await?;
         let tm = TemplateManager::init();
+        let email_timeout = config.email_config.timeout();
+        let email_client = EmailClient::new(
+            &config.email_config.url,
+            email_addr,
+            config.email_config.auth_token,
+            email_timeout,
+        )?;
 
-        let dm = DbManager::init(config).await?;
-        let base_url = config.net_config.base_url.clone();
-        let app_state = AppState::new(dm, tm, email_client, base_url);
+        let app_state = AppState::new(
+            dm,
+            tm,
+            email_client,
+            config.net_config.base_url,
+            config.net_config.secret_key,
+        );
 
         let addr = SocketAddr::from((config.net_config.host, config.net_config.app_port));
         let listener = TcpListener::bind(addr).await?;
@@ -56,6 +63,7 @@ pub struct InternalState {
     pub templ_mgr: TemplateManager,
     pub email_client: EmailClient,
     pub base_url: String,
+    pub secret_key: SecretString,
 }
 
 /// Application state containing all global data.
@@ -70,12 +78,14 @@ impl AppState {
         templ_mgr: TemplateManager,
         email_client: EmailClient,
         base_url: String,
+        secret_key: SecretString,
     ) -> Self {
         AppState(Arc::new(InternalState {
             templ_mgr,
             database_mgr,
             email_client,
             base_url,
+            secret_key,
         }))
     }
 }

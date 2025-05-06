@@ -7,7 +7,6 @@ use crate::{
     },
     AppState,
 };
-use anyhow::Context;
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -28,12 +27,12 @@ pub enum LoginError {
 
 pub async fn login_form(
     State(app_state): State<AppState>,
-    Query(query_err_str): Query<QueryError>,
+    Query(query_err): Query<QueryError>,
 ) -> WebResult<Html<String>> {
     let file = "login_form.html";
     let mut ctx = tera::Context::new();
 
-    if let Some(er) = query_err_str.error {
+    if let Some(er) = query_err.error {
         let er = b64u_decode_to_string(&er).map_err(LoginError::Base64)?;
         ctx.insert("error_message", &er);
     }
@@ -61,8 +60,7 @@ pub async fn login(
     let mut resp = StatusCode::SEE_OTHER.into_response();
     resp.headers_mut().insert(
         axum::http::header::LOCATION,
-        "/".parse()
-            .context("login: failed to parse location as header value")?,
+        "/".parse().expect("valid parse"),
     );
     // TODO: keep logged in
 

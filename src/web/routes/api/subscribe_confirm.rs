@@ -51,7 +51,6 @@ pub async fn subscribe_confirm(
     let subscription_token = subscription_token.deref();
 
     // Get the subscriber_id record from the database.
-    // We also retrieve subscription_token because of the quirks of query_as
     let subscriber_id: Uuid = sqlx::query_scalar(
         r#"SELECT subscriber_id FROM subscription_tokens
     WHERE subscription_token = $1"#,

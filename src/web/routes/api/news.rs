@@ -24,7 +24,7 @@ pub async fn news_publish(
     State(app_state): State<AppState>,
     Json(news): Json<News>,
 ) -> WebResult<()> {
-    let creds = auth::credentials_from_header_map_basic_schema(headers)
+    let creds = auth::Credentials::parse_headers_basic_schema(headers)
         .await
         .map_err(NewsError::Auth)?;
     creds
@@ -48,7 +48,7 @@ pub async fn news_publish(
             // But we still check it if implementation changes.
             if let Err(e) = &res {
                 tracing::error!(
-                error = ?e,
+                    error = ?e,
                     "THIS IS A BUG: a confirmed subscriber is using an invalid email address - email: {email}"
                 );
             }

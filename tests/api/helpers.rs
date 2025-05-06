@@ -166,7 +166,6 @@ impl TestApp {
 
             let raw_link = links[0].as_str().to_owned();
             let mut confirm_link = reqwest::Url::parse(&raw_link)?;
-            // Check that we don''s on the web.
             assert_eq!(confirm_link.host_str(), Some("127.0.0.1"));
             confirm_link.set_port(Some(self.addr.port())).unwrap();
             Ok::<reqwest::Url, anyhow::Error>(confirm_link)

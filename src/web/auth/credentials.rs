@@ -57,40 +57,37 @@ impl Credentials {
 
         Ok(user_id)
     }
-}
 
-/// Try to parse credentials from headers
-pub async fn credentials_from_header_map_basic_schema(
-    header_map: HeaderMap,
-) -> Result<Credentials> {
-    tokio::task::spawn_blocking(move || {
-        let header_val = header_map
-            .get("Authorization")
-            .ok_or(AuthError::MissingAuthHeader)?
-            .to_str()
-            .map_err(|e| AuthError::InvalidUtf(e.to_string()))?;
-        let b64_encoded_seg =
-            header_val
-                .strip_prefix("Basic ")
-                .ok_or(AuthError::WrongAuthSchema {
-                    schema: "Basic".to_string(),
-                })?;
-        let decoded_creds = b64_decode_to_string(b64_encoded_seg)
-            .map_err(|er| anyhow::anyhow!("credentials from header map: {}", er))?;
-        let Some((uname, pass)) = decoded_creds.split_once(':') else {
-            return Err(AuthError::MissingColon);
-        };
-        if uname.graphemes(true).count() > 256 {
-            return Err(AuthError::UsernameTooLong);
-        }
-        if pass.graphemes(true).count() > 256 {
-            return Err(AuthError::PasswordTooLong);
-        }
+    pub async fn parse_headers_basic_schema(header_map: HeaderMap) -> Result<Self> {
+        tokio::task::spawn_blocking(move || {
+            let header_val = header_map
+                .get("Authorization")
+                .ok_or(AuthError::MissingAuthHeader)?
+                .to_str()
+                .map_err(|e| AuthError::InvalidUtf(e.to_string()))?;
+            let b64_encoded_seg =
+                header_val
+                    .strip_prefix("Basic ")
+                    .ok_or(AuthError::WrongAuthSchema {
+                        schema: "Basic".to_string(),
+                    })?;
+            let decoded_creds = b64_decode_to_string(b64_encoded_seg)
+                .map_err(|er| anyhow::anyhow!("credentials from header map: {}", er))?;
+            let Some((uname, pass)) = decoded_creds.split_once(':') else {
+                return Err(AuthError::MissingColon);
+            };
+            if uname.graphemes(true).count() > 256 {
+                return Err(AuthError::UsernameTooLong);
+            }
+            if pass.graphemes(true).count() > 256 {
+                return Err(AuthError::PasswordTooLong);
+            }
 
-        Ok(Credentials::new(uname.into(), pass.to_string().into()))
-    })
-    .await
-    .map_err(|er| anyhow::anyhow!("credentials from header map: {}", er))?
+            Ok(Credentials::new(uname.into(), pass.to_string().into()))
+        })
+        .await
+        .map_err(|er| anyhow::anyhow!("credentials from header map: {}", er))?
+    }
 }
 
 #[cfg(test)]
@@ -128,7 +125,7 @@ mod test {
             let mut header_map = HeaderMap::new();
             header_map.append(axum::http::header::AUTHORIZATION, basic_auth.parse()?);
 
-            let creds_from_schema = credentials_from_header_map_basic_schema(header_map).await?;
+            let creds_from_schema = Credentials::parse_headers_basic_schema(header_map).await?;
             let creds = Credentials::new(username, SecretString::from(password));
 
             assert_eq!(creds_from_schema.username, creds.username);
@@ -150,7 +147,7 @@ mod test {
         let mut header_map = HeaderMap::new();
         header_map.append(axum::http::header::AUTHORIZATION, basic_auth.parse()?);
 
-        let creds_from_schema = credentials_from_header_map_basic_schema(header_map).await;
+        let creds_from_schema = Credentials::parse_headers_basic_schema(header_map).await;
         assert_err!(creds_from_schema);
 
         Ok(())

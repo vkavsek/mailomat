@@ -73,6 +73,20 @@ fly deploy --local-only
 
 ### Database Management
 
+#### Dev
+
+You can connect to a PGDB running in a Docker container using `psql`.
+Check out the **init_docker_db.sh** for syntax.
+
+Common PSQL commands:
+
+- `\l` : list all databases
+- `\c {dbname}` : connect to a database
+- `\d` : list all tables in the database
+- `\d {table_name}` : list the structure of a table
+
+#### Production
+
 To connect to and monitor the DB:
 
 ```fish

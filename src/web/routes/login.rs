@@ -2,7 +2,7 @@ use crate::{
     utils::{self, b64u_decode_to_string},
     web::{
         auth::{self, Credentials},
-        data::QueryError,
+        types::QueryError,
         WebResult,
     },
     AppState,

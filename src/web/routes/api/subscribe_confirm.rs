@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::web::{
     self,
-    data::{SubscribeConfirmQuery, SubscriptionToken},
+    types::{SubscribeConfirmQuery, SubscriptionToken},
     WebResult,
 };
 use crate::AppState;
@@ -23,7 +23,7 @@ pub enum SubscribeConfirmError {
     SubTokenInDbNotFound,
 
     #[error("data parsing error: {0}")]
-    DataParsing(#[from] web::data::DataParsingError),
+    DataParsing(#[from] web::types::DataParsingError),
 
     #[error("error awaiting a blocking tokio task: {0}")]
     BlockingTask(#[from] tokio::task::JoinError),

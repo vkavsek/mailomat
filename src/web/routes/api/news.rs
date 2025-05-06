@@ -4,7 +4,7 @@ use tracing::info;
 use crate::{
     web::{
         self, auth,
-        data::{News, ValidEmail},
+        types::{News, ValidEmail},
         WebResult,
     },
     AppState,

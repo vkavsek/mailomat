@@ -2,7 +2,7 @@
 //! Includes structs that need to be validated, their parsing implementations and tests for those
 
 use derive_more::Deref;
-use rand::{thread_rng, RngCore};
+use rand::{rng, RngCore};
 use serde::Deserialize;
 use unicode_segmentation::UnicodeSegmentation;
 use validator::ValidateEmail;
@@ -73,7 +73,7 @@ impl SubscriptionToken {
     /// Generates an array of 64 random bytes and encodes it to Base64-URL without padding
     pub fn generate() -> Self {
         let mut rand_bytes = [0u8; 64];
-        thread_rng().fill_bytes(&mut rand_bytes);
+        rng().fill_bytes(&mut rand_bytes);
         let token = utils::b64u_encode(rand_bytes);
 
         Self(token)

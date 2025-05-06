@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::{
     web::{
         self,
-        data::{DeserSubscriber, SubscriptionToken, ValidSubscriber},
+        types::{DeserSubscriber, SubscriptionToken, ValidSubscriber},
         WebResult,
     },
     AppState,
@@ -24,7 +24,7 @@ use crate::{
 #[derive(Debug, thiserror::Error)]
 pub enum SubscribeError {
     #[error("data parsing error: {0}")]
-    ValidSubscriberParse(#[from] web::data::DataParsingError),
+    ValidSubscriberParse(#[from] web::types::DataParsingError),
 
     #[error("error sending confirmation email: {0}")]
     ConfirmationEmail(#[from] crate::email_client::Error),

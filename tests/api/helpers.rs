@@ -8,7 +8,7 @@ use mailomat::{
     database::DbManager,
     web::{
         auth::password,
-        data::{DeserSubscriber, ValidSubscriber},
+        types::{DeserSubscriber, ValidSubscriber},
     },
     App,
 };
@@ -65,11 +65,11 @@ impl TestApp {
 
         test_database_create_migrate(&config).await?;
 
-        let app = App::build_from_config(&config).await?;
+        let app = App::build_from_config(config).await?;
         let username = Uuid::new_v4().to_string();
         let password = Uuid::new_v4().to_string();
         let password_hash =
-            password::hash_new_to_string_async(SecretString::new(password.clone())).await?;
+            password::hash_new_to_string_async(SecretString::from(password.clone())).await?;
 
         // Add a test user
         sqlx::query(
@@ -123,7 +123,7 @@ impl TestApp {
 
         let res = self
             .http_client
-            .post(&format!("http://{}/api/news", &self.addr))
+            .post(format!("http://{}/api/news", &self.addr))
             .json(&newsletter_req_body)
             .send()
             .await?;
@@ -144,7 +144,7 @@ impl TestApp {
         let test_user = &self.test_user;
         let res = self
             .http_client
-            .post(&format!("http://{}/api/news", &self.addr))
+            .post(format!("http://{}/api/news", &self.addr))
             .basic_auth(test_user.username.clone(), Some(test_user.password.clone()))
             .json(&newsletter_req_body)
             .send()
@@ -280,7 +280,7 @@ pub async fn api_news_post_appless(
     });
 
     let res = http_client
-        .post(&format!("http://{}/api/news", &addr))
+        .post(format!("http://{}/api/news", &addr))
         .basic_auth(test_user.username.clone(), Some(test_user.password.clone()))
         .json(&newsletter_req_body)
         .send()

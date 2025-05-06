@@ -3,7 +3,7 @@ use secrecy::{ExposeSecret, SecretString};
 use serde::Serialize;
 use strum_macros::AsRefStr;
 
-use crate::web::data::ValidEmail;
+use crate::web::types::ValidEmail;
 
 #[derive(Debug, AsRefStr)]
 pub enum MessageStream {
@@ -157,7 +157,6 @@ mod tests {
         faker::{internet::en::SafeEmail, lorem::en::Sentence},
         Fake, Faker,
     };
-    use secrecy::Secret;
     use wiremock::{
         matchers::{any, header, header_exists, method, path},
         Mock, MockServer, ResponseTemplate,
@@ -167,8 +166,8 @@ mod tests {
 
     impl wiremock::Match for SendEmailBodyMatcher {
         fn matches(&self, request: &wiremock::Request) -> bool {
-            let res: Result<serde_json::Value, _> = serde_json::from_slice(&request.body);
-            if let Ok(body) = res {
+            let res_body: Result<serde_json::Value, _> = serde_json::from_slice(&request.body);
+            if let Ok(body) = res_body {
                 body.get("From").is_some()
                     && body.get("To").is_some()
                     && body.get("Subject").is_some()
@@ -195,10 +194,11 @@ mod tests {
     }
 
     fn email_client(url: String) -> Result<EmailClient> {
+        let auth: String = Faker.fake();
         let out = EmailClient::new(
             url,
             email()?,
-            Secret::new(Faker.fake()),
+            SecretString::from(auth),
             Duration::from_millis(200),
         )?;
         Ok(out)

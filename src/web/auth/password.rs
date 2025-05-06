@@ -28,6 +28,7 @@ pub async fn hash_new_to_string_async(raw_password: SecretString) -> Result<Stri
         .await
         .map_err(|er| anyhow::anyhow!("password hashing: {}", er))?
 }
+
 pub fn hash_new_to_string(raw_password: SecretString) -> Result<String> {
     let argon2 = get_argon2();
 
@@ -54,7 +55,7 @@ pub async fn validate_async(raw_password: SecretString, pwd_hash: SecretString) 
 pub fn validate(raw_password: SecretString, pwd_hash_ref: SecretString) -> Result<()> {
     let argon2 = get_argon2();
 
-    let parsed_hash = PasswordHash::new(pwd_hash_ref.expose_secret().as_str())?;
+    let parsed_hash = PasswordHash::new(pwd_hash_ref.expose_secret())?;
 
     argon2
         .verify_password(raw_password.expose_secret().as_bytes(), &parsed_hash)
@@ -80,8 +81,8 @@ mod tests {
 
     #[test]
     fn pwd_hashing_and_validate_ok() -> Result<()> {
-        let password = SecretString::new(fake_valid_pwd());
-        let hashed = SecretString::new(hash_new_to_string(password.clone())?);
+        let password = SecretString::from(fake_valid_pwd());
+        let hashed = SecretString::from(hash_new_to_string(password.clone())?);
 
         validate(password, hashed)?;
         Ok(())
@@ -89,9 +90,9 @@ mod tests {
 
     #[test]
     fn pwd_hashing_and_validate_not_ok() -> Result<()> {
-        let password = SecretString::new(fake_valid_pwd());
-        let hashed = SecretString::new(hash_new_to_string(password.clone())?);
-        let new_password = SecretString::new(fake_valid_pwd());
+        let password = SecretString::from(fake_valid_pwd());
+        let hashed = SecretString::from(hash_new_to_string(password.clone())?);
+        let new_password = SecretString::from(fake_valid_pwd());
 
         let res = validate(new_password, hashed);
 

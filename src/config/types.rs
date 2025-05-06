@@ -12,7 +12,7 @@ use strum_macros::AsRefStr;
 use toml::Value;
 
 use crate::config::{ConfigError, ConfigResult};
-use crate::web::data::ValidEmail;
+use crate::web::types::ValidEmail;
 
 // ###################################
 // ->   STRUCTS
@@ -137,7 +137,7 @@ impl TryFrom<&str> for DbConfig {
 
         let (username, db_name, host) =
             (username.to_string(), db_name.to_string(), host.to_string());
-        let password = SecretString::new(password.to_string());
+        let password = SecretString::from(password.to_string());
         let port = port
             .parse()
             .map_err(|_| Self::Error::StringToDbConfigFail)?;

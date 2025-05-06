@@ -1,5 +1,5 @@
 use anyhow::Result;
-use mailomat::web::data::SubscriptionToken;
+use mailomat::web::types::SubscriptionToken;
 use reqwest::{StatusCode, Url};
 use serde_json::json;
 use wiremock::{
@@ -15,7 +15,7 @@ async fn api_subscribe_confirm_without_token_rejected_with_400() -> Result<()> {
 
     let res = app
         .http_client
-        .get(&format!("http://{}/api/subscribe/confirm", app.addr))
+        .get(format!("http://{}/api/subscribe/confirm", app.addr))
         .send()
         .await?;
 

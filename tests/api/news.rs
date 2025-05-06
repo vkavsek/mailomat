@@ -127,7 +127,7 @@ async fn api_news_invalid_data_422() -> Result<()> {
     for (inv_body, err_msg) in test_cases {
         let resp = app
             .http_client
-            .post(&format!("http://{}/api/news", &app.addr))
+            .post(format!("http://{}/api/news", &app.addr))
             .json(&inv_body)
             .send()
             .await?;
@@ -162,7 +162,7 @@ async fn api_news_non_existing_user_rejected() -> Result<()> {
 
     let response = app
         .http_client
-        .post(&format!("http://{}/api/news", &app.addr))
+        .post(format!("http://{}/api/news", &app.addr))
         .basic_auth(username, Some(password))
         .json(&serde_json::json!({
             "title": "Title",
@@ -190,7 +190,7 @@ async fn api_news_invalid_password_rejected() -> Result<()> {
 
     let response = app
         .http_client
-        .post(&format!("http://{}/api/news", &app.addr))
+        .post(format!("http://{}/api/news", &app.addr))
         .basic_auth(app.test_user.username, Some(password))
         .json(&serde_json::json!({
             "title": "Title",

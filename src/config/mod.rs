@@ -2,8 +2,8 @@
 //! Gets initialized with `OnceLock` so it only needs to get initialized once.
 //! Currently uses `figment` to build up configuration from multiple files and env variables.
 
-mod data;
 mod error;
+mod types;
 
 use core::panic;
 use figment::{
@@ -13,11 +13,11 @@ use figment::{
 use std::sync::OnceLock;
 use tracing::info;
 
-use data::Environment;
+use types::Environment;
 
 // Re-export config structs
-pub use data::{AppConfig, DbConfig, EmailConfig, NetConfig};
 pub use error::{ConfigError, ConfigResult};
+pub use types::{AppConfig, DbConfig, EmailConfig, NetConfig};
 
 /// Allocates a static `OnceLock` containing `AppConfig`.
 /// This ensures configuration only gets initialized the first time we call this function.

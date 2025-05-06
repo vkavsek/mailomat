@@ -68,7 +68,7 @@ pub struct InternalState {
 
 /// Application state containing all global data.
 /// It implements `Deref` to easily access the fields on `InternalState`
-/// Contains an `Arc` so it is cheap to clone!
+/// Uses an `Arc` so it is cheap to clone!
 #[derive(Clone, Deref)]
 pub struct AppState(Arc<InternalState>);
 

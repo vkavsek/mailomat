@@ -45,7 +45,7 @@ impl Credentials {
         if !user_id.is_nil() {
             hash = expected_pwd_hash;
         }
-        password::validate_async(self.password, SecretString::new(hash)).await?;
+        password::validate_async(self.password, SecretString::from(hash)).await?;
         // This should theoretically never happen, since the password validation should fail if the
         // user doesn't exist.
         if user_id.is_nil() {
@@ -129,7 +129,7 @@ mod test {
             header_map.append(axum::http::header::AUTHORIZATION, basic_auth.parse()?);
 
             let creds_from_schema = credentials_from_header_map_basic_schema(header_map).await?;
-            let creds = Credentials::new(username, SecretString::new(password));
+            let creds = Credentials::new(username, SecretString::from(password));
 
             assert_eq!(creds_from_schema.username, creds.username);
             assert_eq!(

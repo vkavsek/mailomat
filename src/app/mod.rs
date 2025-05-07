@@ -1,6 +1,7 @@
 pub mod serve;
 
-use secrecy::SecretString;
+use anyhow::Context;
+use secrecy::{ExposeSecret, SecretSlice};
 pub use serve::serve;
 
 use derive_more::Deref;
@@ -9,7 +10,8 @@ use tokio::net::TcpListener;
 use tracing::info;
 
 use crate::{
-    config::AppConfig, database::DbManager, templ_manager::TemplateManager, EmailClient, Result,
+    config::AppConfig, database::DbManager, templ_manager::TemplateManager, utils, EmailClient,
+    Result,
 };
 
 // ###################################
@@ -39,13 +41,17 @@ impl App {
             config.email_config.auth_token,
             email_timeout,
         )?;
+        let hmac_secret = SecretSlice::from(
+            utils::b64_decode(config.net_config.hmac_secret_b64enc.expose_secret())
+                .context("config: failed to decode HMAC secret from base 64")?,
+        );
 
         let app_state = AppState::new(
             dm,
             tm,
             email_client,
             config.net_config.base_url,
-            config.net_config.hmac_secret,
+            hmac_secret,
         );
 
         let addr = SocketAddr::from((config.net_config.host, config.net_config.app_port));
@@ -63,7 +69,7 @@ pub struct InternalState {
     pub templ_mgr: TemplateManager,
     pub email_client: EmailClient,
     pub base_url: String,
-    pub secret_key: SecretString,
+    pub hmac_secret: SecretSlice<u8>,
 }
 
 /// Application state containing all global data.
@@ -78,14 +84,14 @@ impl AppState {
         templ_mgr: TemplateManager,
         email_client: EmailClient,
         base_url: String,
-        secret_key: SecretString,
+        hmac_secret: SecretSlice<u8>,
     ) -> Self {
         AppState(Arc::new(InternalState {
             templ_mgr,
             database_mgr,
             email_client,
             base_url,
-            secret_key,
+            hmac_secret,
         }))
     }
 }

@@ -17,11 +17,6 @@ use crate::web::types::ValidEmail;
 // ###################################
 // ->   STRUCTS
 // ###################################
-/// Not currently used.
-/// TODO: Remove
-#[derive(Serialize, Deserialize, Debug, Default)]
-pub struct AppConfigBuilder(HashMap<String, HashMap<String, Value>>);
-
 #[derive(AsRefStr)]
 pub enum Environment {
     Local,
@@ -40,7 +35,7 @@ pub struct NetConfig {
     pub host: [u8; 4],
     pub app_port: u16,
     pub base_url: String,
-    pub hmac_secret: SecretString,
+    pub hmac_secret_b64enc: SecretString,
 }
 
 #[derive(Deserialize, Clone, Debug)]

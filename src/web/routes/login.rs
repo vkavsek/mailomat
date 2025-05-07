@@ -50,7 +50,8 @@ pub async fn login(
     State(app_state): State<AppState>,
     Form(user_creds): Form<Credentials>,
 ) -> WebResult<Response> {
-    // If we get an authentication error redirect is inserted to headers in response mapper
+    // If we get an authentication error redirect to `login_form` is inserted to headers in response mapper
+    // alongside the client error message and an hmac tag to authenticate the error message.
     let user_id = user_creds
         .authenticate(&app_state.database_mgr)
         .await

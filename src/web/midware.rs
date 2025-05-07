@@ -9,6 +9,7 @@ use axum::{
     Json,
 };
 use hmac::{Hmac, Mac};
+use secrecy::ExposeSecret;
 use serde_json::json;
 use sha2::Sha256;
 
@@ -33,7 +34,7 @@ pub enum RespMapError {
 /// This response mapper's current main function is to retrieve `web::Error` from response extensions (if it exists),
 /// print it, convert it to `ClientError` and use it to manipulate the response, which is then sent back to the user.
 pub async fn error_handle_response_mapper(
-    State(_app_state): State<AppState>,
+    State(app_state): State<AppState>,
     resp: Response,
 ) -> WebResult<Response> {
     // Get UUID from headers stored there by SetRequestIdLayer middleware from tower_http
@@ -55,7 +56,6 @@ pub async fn error_handle_response_mapper(
         // If LoginError::AuthError is encountered create a redirect response back to the login form
         // but insert the client error as a query parameter in the request so it can be displayed to the user
         Some(web::Error::Login(LoginError::Auth(_))) => {
-            let mut resp = axum::http::StatusCode::SEE_OTHER.into_response();
             let client_error = client_status_and_error
                 .map(|(_, cl_er)| cl_er)
                 .expect("checked above");
@@ -68,12 +68,15 @@ pub async fn error_handle_response_mapper(
             .map_err(|er| anyhow::anyhow!("midware: {er}"))?;
 
             // Create a message authentication code tag for our error messages
-            let hmac_secret = "TODO".as_bytes();
             let hmac_tag = {
-                let mut mac = Hmac::<Sha256>::new_from_slice(hmac_secret).unwrap();
+                let mut mac = Hmac::<Sha256>::new_from_slice(app_state.hmac_secret.expose_secret())
+                    .context("midware: failed to create HMAC from hmac_secret")?;
                 mac.update(b64u_client_error_str.as_bytes());
                 mac.finalize().into_bytes()
             };
+
+            // insert error message and hexadecimal represenation of HMAC tag
+            let mut resp = axum::http::StatusCode::SEE_OTHER.into_response();
             resp.headers_mut().insert(
                 axum::http::header::LOCATION,
                 format!("/login?error={}&tag={:x}", b64u_client_error_str, hmac_tag)

@@ -1,8 +1,8 @@
 use crate::{
-    utils::{self, b64u_decode_to_string},
+    utils::{self, b64u_decode_to_string, hex_decode},
     web::{
         auth::{self, Credentials},
-        types::QueryError,
+        types::LoginQueryParams,
         WebResult,
     },
     AppState,
@@ -21,20 +21,25 @@ pub enum LoginError {
     Auth(#[from] auth::AuthError),
     #[error("tera template render error: {0}")]
     Tera(#[from] tera::Error),
-    #[error("base64-url decoding error: {0}")]
-    Base64(#[from] utils::B64DecodeError),
+    #[error("utils error: {0}")]
+    Utils(#[from] utils::UtilsError),
 }
 
 pub async fn login_form(
     State(app_state): State<AppState>,
-    Query(query_err): Query<QueryError>,
+    Query(query_params): Query<Option<LoginQueryParams>>,
 ) -> WebResult<Html<String>> {
     let file = "login_form.html";
     let mut ctx = tera::Context::new();
 
-    if let Some(er) = query_err.error {
-        let er = b64u_decode_to_string(&er).map_err(LoginError::Base64)?;
-        ctx.insert("error_message", &er);
+    if let Some(LoginQueryParams {
+        error_b64u,
+        tag_hex,
+    }) = query_params
+    {
+        let error = b64u_decode_to_string(&error_b64u).map_err(LoginError::Utils)?;
+        let tag = hex_decode(tag_hex).map_err(LoginError::Utils)?;
+        ctx.insert("error_message", &error);
     }
 
     let body = app_state

@@ -1,15 +1,12 @@
 //! The configuration structs used to build the AppConfig, and their impls.
-use std::collections::HashMap;
-
 use lazy_regex::regex_captures;
 use secrecy::{ExposeSecret, SecretString};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sqlx::{
     postgres::{PgConnectOptions, PgSslMode},
     ConnectOptions,
 };
 use strum_macros::AsRefStr;
-use toml::Value;
 
 use crate::config::{ConfigError, ConfigResult};
 use crate::web::types::ValidEmail;

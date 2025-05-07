@@ -43,7 +43,7 @@ impl App {
         )?;
         let hmac_secret = SecretSlice::from(
             utils::b64_decode(config.net_config.hmac_secret_b64enc.expose_secret())
-                .context("config: failed to decode HMAC secret from base 64")?,
+                .context("config: failed to decode HMAC secret from base64")?,
         );
 
         let app_state = AppState::new(

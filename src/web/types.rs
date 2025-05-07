@@ -60,10 +60,12 @@ pub struct SubscribeConfirmQuery {
 }
 
 /// A deserializable struct that contains the base64-url encoded string representation of `ClientError`
-/// to be deserialized from the query
-#[derive(Debug, Deserialize, Deref)]
-pub struct QueryError {
-    pub error: Option<String>,
+/// and an HMAC tag to authenticate the error message to be deserialized from the query on the login page
+/// in zero-padded hexadecimal representation
+#[derive(Debug, Deserialize)]
+pub struct LoginQueryParams {
+    pub error_b64u: String,
+    pub tag_hex: String,
 }
 
 // ###################################

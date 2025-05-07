@@ -14,7 +14,7 @@ use serde_json::json;
 use sha2::Sha256;
 
 use crate::{
-    utils::b64u_encode,
+    utils::{self, b64u_encode},
     web::{self, WebResult, REQUEST_ID_HEADER},
     AppState,
 };
@@ -68,20 +68,24 @@ pub async fn error_handle_response_mapper(
             .map_err(|er| anyhow::anyhow!("midware: {er}"))?;
 
             // Create a message authentication code tag for our error messages
-            let hmac_tag = {
+            // encoded as hexadecimal
+            let hmac_tag_hex = {
                 let mut mac = Hmac::<Sha256>::new_from_slice(app_state.hmac_secret.expose_secret())
                     .context("midware: failed to create HMAC from hmac_secret")?;
                 mac.update(b64u_client_error_str.as_bytes());
-                mac.finalize().into_bytes()
+                utils::hex_encode(mac.finalize().into_bytes().as_ref())
             };
 
             // insert error message and hexadecimal represenation of HMAC tag
             let mut resp = axum::http::StatusCode::SEE_OTHER.into_response();
             resp.headers_mut().insert(
                 axum::http::header::LOCATION,
-                format!("/login?error={}&tag={:x}", b64u_client_error_str, hmac_tag)
-                    .parse()
-                    .context("midware: failed to parse location as header value")?,
+                format!(
+                    "/login?error={}&tag={}",
+                    b64u_client_error_str, hmac_tag_hex
+                )
+                .parse()
+                .context("midware: failed to parse location as header value")?,
             );
             Some(resp)
         }

@@ -45,7 +45,7 @@ impl App {
             tm,
             email_client,
             config.net_config.base_url,
-            config.net_config.secret_key,
+            config.net_config.hmac_secret,
         );
 
         let addr = SocketAddr::from((config.net_config.host, config.net_config.app_port));

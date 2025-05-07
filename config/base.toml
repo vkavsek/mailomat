@@ -1,7 +1,7 @@
 [net_config]
 app_port = 8080
 # Only for dev
-secret_key = "/sM4OQIShsCaTOYz74J7x2SZ7QiA+YqDfZ7C0UcCA3q9/fIpfUfl4bUHGQM6VTmQyL5GE+EmkSLKikRAV+OMCw=="
+hmac_secret = "/sM4OQIShsCaTOYz74J7x2SZ7QiA+YqDfZ7C0UcCA3q9/fIpfUfl4bUHGQM6VTmQyL5GE+EmkSLKikRAV+OMCw=="
 
 [db_config]
 host = "127.0.0.1"

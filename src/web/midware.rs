@@ -8,7 +8,9 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+use hmac::{Hmac, Mac};
 use serde_json::json;
+use sha2::Sha256;
 
 use crate::{
     utils::b64u_encode,
@@ -65,9 +67,16 @@ pub async fn error_handle_response_mapper(
             .await
             .map_err(|er| anyhow::anyhow!("midware: {er}"))?;
 
+            // Create a message authentication code tag for our error messages
+            let hmac_secret = "TODO".as_bytes();
+            let hmac_tag = {
+                let mut mac = Hmac::<Sha256>::new_from_slice(hmac_secret).unwrap();
+                mac.update(b64u_client_error_str.as_bytes());
+                mac.finalize().into_bytes()
+            };
             resp.headers_mut().insert(
                 axum::http::header::LOCATION,
-                format!("/login?error={}", b64u_client_error_str)
+                format!("/login?error={}&tag={:x}", b64u_client_error_str, hmac_tag)
                     .parse()
                     .context("midware: failed to parse location as header value")?,
             );

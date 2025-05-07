@@ -40,7 +40,7 @@ pub struct NetConfig {
     pub host: [u8; 4],
     pub app_port: u16,
     pub base_url: String,
-    pub secret_key: SecretString,
+    pub hmac_secret: SecretString,
 }
 
 #[derive(Deserialize, Clone, Debug)]

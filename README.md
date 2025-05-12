@@ -3,14 +3,7 @@
 My version of the app built in [Zero To Production In Rust](https://www.zero2prod.com).
 Uses [Axum](https://github.com/tokio-rs/axum) instead of Actix with hosting on [Fly.io](https://fly.io/).
 
-#### TODO
-
-- subscription_tokens table reset periodically?
-- What to do if a user didn't get / accidentally deleted confirmation email. Currently once the user was sent a confirmation email, there is no mechanism for that email to be sent again. We could delete unconfirmed users daily, or send only 2 mails in a span of 24 hours max, or some combination of those options.
-- add HMAC secret to fly.io before deploying
-- HMAC secret rotation
-
-- Add hashing pepper. For dev and as a secret.
+[TODOs](TODO.md)
 
 ## Info
 

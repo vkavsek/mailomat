@@ -25,11 +25,10 @@ pub enum LoginError {
     Utils(#[from] utils::UtilsError),
 }
 
-pub async fn login_form(
+pub async fn login_get(
     State(app_state): State<AppState>,
     Query(query_params): Query<Option<LoginQueryParams>>,
 ) -> WebResult<Html<String>> {
-    let file = "login_form.html";
     let mut ctx = tera::Context::new();
 
     if let Some(LoginQueryParams {
@@ -44,14 +43,14 @@ pub async fn login_form(
 
     let body = app_state
         .templ_mgr
-        .render_html_to_string(&ctx, file)
+        .render_html_to_string(&ctx, "login_form.html")
         .map_err(LoginError::Tera)?;
 
     Ok(Html(body))
 }
 
 #[tracing::instrument(skip(app_state, user_creds), fields(username = user_creds.username))]
-pub async fn login(
+pub async fn login_post(
     State(app_state): State<AppState>,
     Form(user_creds): Form<Credentials>,
 ) -> WebResult<Response> {

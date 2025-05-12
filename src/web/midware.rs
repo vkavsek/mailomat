@@ -19,9 +19,7 @@ use crate::{
     AppState,
 };
 
-use web::routes::api::news::NewsError;
-
-use super::routes::login::LoginError;
+use web::routes::{api::news::NewsError, login::LoginError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum RespMapError {
@@ -73,7 +71,7 @@ pub async fn error_handle_response_mapper(
                 let mut mac = Hmac::<Sha256>::new_from_slice(app_state.hmac_secret.expose_secret())
                     .context("midware: failed to create HMAC from hmac_secret")?;
                 mac.update(b64u_client_error_str.as_bytes());
-                utils::hex_encode(mac.finalize().into_bytes().as_ref())
+                utils::hex_encode(mac.finalize().into_bytes())
             };
 
             // insert error message and hexadecimal represenation of HMAC tag

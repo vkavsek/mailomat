@@ -13,7 +13,7 @@ use mailomat::{
     App,
 };
 use reqwest::Client;
-use secrecy::SecretString;
+use secrecy::{ExposeSecret, SecretString};
 use serde_json::{json, Value};
 use sqlx::{postgres::PgPoolOptions, Connection, PgConnection};
 use tracing::level_filters::LevelFilter;
@@ -78,7 +78,7 @@ impl TestApp {
         )
         .bind(Uuid::new_v4())
         .bind(&username)
-        .bind(password_hash)
+        .bind(password_hash.expose_secret())
         .execute(app.app_state.database_mgr.db())
         .await?;
 

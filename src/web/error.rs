@@ -65,7 +65,7 @@ impl IntoResponse for Error {
         // Construct a response
         let mut res = StatusCode::INTERNAL_SERVER_ERROR.into_response();
 
-        // Insert the Error into response so that it can be retrieved later.
+        // Insert the Error into response so that it can be retrieved later by the middleware.
         res.extensions_mut().insert(Arc::new(self));
 
         res

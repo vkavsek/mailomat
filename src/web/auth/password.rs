@@ -23,13 +23,13 @@ pub fn get_argon2() -> &'static Argon2<'static> {
 ///
 /// Tries to create a new `PasswordHash` from the user-provided `raw_password` and newly created
 /// password salt and returns a Result containing a `String` representation of the created password hash.
-pub async fn hash_new_to_string_async(raw_password: SecretString) -> Result<String> {
+pub async fn hash_new_to_string_async(raw_password: SecretString) -> Result<SecretString> {
     tokio::task::spawn_blocking(move || hash_new_to_string(raw_password))
         .await
         .map_err(|er| anyhow::anyhow!("password hashing: {}", er))?
 }
 
-pub fn hash_new_to_string(raw_password: SecretString) -> Result<String> {
+pub fn hash_new_to_string(raw_password: SecretString) -> Result<SecretString> {
     let argon2 = get_argon2();
 
     let salt = SaltString::encode_b64(Uuid::new_v4().as_bytes())
@@ -40,7 +40,7 @@ pub fn hash_new_to_string(raw_password: SecretString) -> Result<String> {
         .map_err(|e| AuthError::Hashing(e.to_string()))?
         .to_string();
 
-    Ok(hashed)
+    Ok(SecretString::from(hashed))
 }
 
 /// Async wrapper around validate(), spawns a new blocking task.
@@ -82,7 +82,7 @@ mod tests {
     #[test]
     fn pwd_hashing_and_validate_ok() -> Result<()> {
         let password = SecretString::from(fake_valid_pwd());
-        let hashed = SecretString::from(hash_new_to_string(password.clone())?);
+        let hashed = hash_new_to_string(password.clone())?;
 
         validate(password, hashed)?;
         Ok(())
@@ -91,7 +91,7 @@ mod tests {
     #[test]
     fn pwd_hashing_and_validate_not_ok() -> Result<()> {
         let password = SecretString::from(fake_valid_pwd());
-        let hashed = SecretString::from(hash_new_to_string(password.clone())?);
+        let hashed = hash_new_to_string(password.clone())?;
         let new_password = SecretString::from(fake_valid_pwd());
 
         let res = validate(new_password, hashed);

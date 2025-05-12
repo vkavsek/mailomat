@@ -7,7 +7,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use login::{login, login_form};
+use login::{login_get, login_post};
 
 use crate::AppState;
 
@@ -19,7 +19,7 @@ async fn health_check() -> StatusCode {
 pub fn routes(app_state: AppState) -> Router {
     Router::new()
         .route("/", get(home::home))
-        .route("/login", get(login_form).post(login))
+        .route("/login", get(login_get).post(login_post))
         .with_state(app_state.clone())
         .nest("/api", api_routes(app_state))
         .route("/health-check", get(health_check))

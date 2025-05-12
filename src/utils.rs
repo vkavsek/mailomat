@@ -42,7 +42,8 @@ pub fn b64u_decode_to_string(v: &str) -> Result<String> {
 // ->   Hex encode / decode
 // ###################################
 /// encodes to padded lowercase hexadecimal representation
-pub fn hex_encode(bytes: &[u8]) -> String {
+pub fn hex_encode(bytes: impl AsRef<[u8]>) -> String {
+    let bytes = bytes.as_ref();
     const HEX_CHARS: &[u8; 16] = b"0123456789abcdef";
     let mut hex = String::with_capacity(bytes.len() * 2);
 
@@ -113,26 +114,79 @@ mod test {
     }
 
     #[quickcheck]
-    fn hex_encode_works(bytes: Bytes) {
+    fn hex_encode_fuzz_works(bytes: Bytes) {
         let fixture = bytes.deref();
-        let expected = fixture
+        let expected_hex = fixture
             .iter()
             .map(|&c| format!("{:02x}", c))
             .collect::<String>();
 
         let hex = hex_encode(fixture);
 
-        assert_eq!(expected, hex);
+        assert_eq!(expected_hex, hex);
     }
 
     #[quickcheck]
-    fn hex_decode_works(bytes: Bytes) -> anyhow::Result<()> {
-        let fixture = bytes.0;
-        let hex = hex_encode(&fixture);
+    fn hex_decode_fuzz_works(bytes: Bytes) -> anyhow::Result<()> {
+        let fixture = bytes.deref();
+        let hex = hex_encode(fixture);
+        let expected_hex = fixture
+            .iter()
+            .map(|&c| format!("{:02x}", c))
+            .collect::<String>();
 
         let decoded = hex_decode(&hex)?;
-        assert_eq!(fixture, decoded);
+        let expected_decoded = hex_decode(&expected_hex)?;
+        assert_eq!(expected_decoded, decoded);
+        assert_eq!(*fixture, decoded);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_hex_encode_basic() {
+        let input = b"hello";
+        let expected = "68656c6c6f";
+        assert_eq!(hex_encode(input), expected);
+    }
+
+    #[test]
+    fn test_hex_encode_empty() {
+        let input: &[u8] = b"";
+        let expected = "";
+        assert_eq!(hex_encode(input), expected);
+    }
+
+    #[test]
+    fn test_hex_decode_basic() {
+        let input = "68656c6c6f";
+        let expected = b"hello".to_vec();
+        assert_eq!(hex_decode(input).unwrap(), expected);
+    }
+
+    #[test]
+    fn test_hex_decode_uppercase() {
+        let input = "48656C6C6F";
+        let expected = b"Hello".to_vec();
+        assert_eq!(hex_decode(input).unwrap(), expected);
+    }
+
+    #[test]
+    fn test_hex_decode_empty() {
+        let input = "";
+        let expected: Vec<u8> = vec![];
+        assert_eq!(hex_decode(input).unwrap(), expected);
+    }
+
+    #[test]
+    fn test_hex_decode_invalid_length() {
+        let input = "abc"; // Odd number of characters
+        assert!(hex_decode(input).is_err());
+    }
+
+    #[test]
+    fn test_hex_decode_invalid_chars() {
+        let input = "zzzz";
+        assert!(hex_decode(input).is_err());
     }
 }

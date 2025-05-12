@@ -1,6 +1,6 @@
 use mailomat::utils::b64_encode;
 use rand::Fill;
-use secrecy::SecretString;
+use secrecy::{ExposeSecret, SecretString};
 
 fn main() -> anyhow::Result<()> {
     let mut bytes = [0u8; 64];
@@ -10,7 +10,7 @@ fn main() -> anyhow::Result<()> {
 
     println!("The password:\n\t'{}'", pass);
     let hashed = mailomat::web::auth::password::hash_new_to_string(SecretString::from(pass))?;
-    println!("was hashed into:\n\t'{hashed}'");
+    println!("was hashed into:\n\t'{}'", hashed.expose_secret());
 
     Ok(())
 }

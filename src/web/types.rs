@@ -1,13 +1,17 @@
 //! Most of the structs in `web` module and their implementations live here.
 //! Includes structs that need to be validated, their parsing implementations and tests for those
 
+use anyhow::Context;
 use derive_more::Deref;
+use hmac::{Hmac, Mac};
 use rand::{rng, RngCore};
+use secrecy::ExposeSecret;
 use serde::Deserialize;
+use sha2::Sha256;
 use unicode_segmentation::UnicodeSegmentation;
 use validator::ValidateEmail;
 
-use crate::utils;
+use crate::{utils, AppState};
 
 // ###################################
 // ->   STRUCTS
@@ -33,67 +37,18 @@ pub struct DeserSubscriber {
     pub email: String,
 }
 
+impl DeserSubscriber {
+    pub fn new(name: String, email: String) -> Self {
+        Self { name, email }
+    }
+}
+
 /// Validated Subscriber
 /// A Subscriber with all the fields validated
 #[derive(Debug, Clone)]
 pub struct ValidSubscriber {
     pub email: ValidEmail,
     pub name: ValidName,
-}
-
-/// Validated Subscriber Email
-#[derive(Debug, Clone)]
-pub struct ValidEmail(String);
-
-/// Validated Subscriber Name
-#[derive(Debug, Clone)]
-pub struct ValidName(String);
-
-/// A random 86 character-long case-sensitive Base64-URL encoded subscription token
-#[derive(Debug, Deref)]
-pub struct SubscriptionToken(String);
-
-/// A deserializable struct that contains the `subscription_token` to be deserialized from the query
-#[derive(Debug, Deserialize, Deref)]
-pub struct SubscribeConfirmQuery {
-    pub subscription_token: String,
-}
-
-/// A deserializable struct that contains the base64-url encoded string representation of `ClientError`
-/// and an HMAC tag to authenticate the error message to be deserialized from the query on the login page
-/// in zero-padded hexadecimal representation
-#[derive(Debug, Deserialize)]
-pub struct LoginQueryParams {
-    pub error_b64u: String,
-    pub tag_hex: String,
-}
-
-// ###################################
-// ->   IMPLS
-// ###################################
-impl SubscriptionToken {
-    /// Generates an array of 64 random bytes and encodes it to Base64-URL without padding
-    pub fn generate() -> Self {
-        let mut rand_bytes = [0u8; 64];
-        rng().fill_bytes(&mut rand_bytes);
-        let token = utils::b64u_encode(rand_bytes);
-
-        Self(token)
-    }
-
-    pub fn parse<S>(value: S) -> Result<Self, DataParsingError>
-    where
-        S: AsRef<str>,
-    {
-        let value = value.as_ref();
-
-        let decoded = utils::b64u_decode(value);
-        if decoded.is_err() || decoded.is_ok_and(|v| v.len() != 64) {
-            return Err(DataParsingError::SubscriberTokenInvalid(value.to_string()));
-        }
-
-        Ok(Self(value.to_string()))
-    }
 }
 
 impl TryFrom<DeserSubscriber> for ValidSubscriber {
@@ -107,11 +62,9 @@ impl TryFrom<DeserSubscriber> for ValidSubscriber {
     }
 }
 
-impl DeserSubscriber {
-    pub fn new(name: String, email: String) -> Self {
-        Self { name, email }
-    }
-}
+/// Validated Subscriber Email
+#[derive(Debug, Clone)]
+pub struct ValidEmail(String);
 
 impl AsRef<str> for ValidEmail {
     fn as_ref(&self) -> &str {
@@ -137,6 +90,10 @@ impl ValidEmail {
         }
     }
 }
+
+/// Validated Subscriber Name
+#[derive(Debug, Clone)]
+pub struct ValidName(String);
 
 impl AsRef<str> for ValidName {
     fn as_ref(&self) -> &str {
@@ -167,6 +124,74 @@ impl ValidName {
     }
 }
 
+/// A random 86 character-long case-sensitive Base64-URL encoded subscription token
+#[derive(Debug, Deref)]
+pub struct SubscriptionToken(String);
+
+impl SubscriptionToken {
+    /// Generates an array of 64 random bytes and encodes it to Base64-URL without padding
+    pub fn generate() -> Self {
+        let mut rand_bytes = [0u8; 64];
+        rng().fill_bytes(&mut rand_bytes);
+        let token = utils::b64u_encode(rand_bytes);
+
+        Self(token)
+    }
+
+    pub fn parse<S>(value: S) -> Result<Self, DataParsingError>
+    where
+        S: AsRef<str>,
+    {
+        let value = value.as_ref();
+
+        let decoded = utils::b64u_decode(value);
+        if decoded.is_err() || decoded.is_ok_and(|v| v.len() != 64) {
+            return Err(DataParsingError::SubscriberTokenInvalid(value.to_string()));
+        }
+
+        Ok(Self(value.to_string()))
+    }
+}
+
+/// A deserializable struct that contains the `subscription_token` to be deserialized from the query
+#[derive(Debug, Deserialize, Deref)]
+pub struct SubscribeConfirmQuery {
+    pub subscription_token: String,
+}
+
+/// A deserializable struct that contains the BASE64-url encoded string representation of `ClientError`
+/// and an HMAC tag to authenticate the error message to be deserialized from the query on the login page
+/// in zero-padded hexadecimal representation
+#[derive(Debug, Deserialize)]
+pub struct LoginQueryParams {
+    /// BASE64-url encoded error
+    pub error: String,
+    /// Zero-padded lowercase Hexadecimal encoded HMAC tag
+    pub tag: String,
+}
+
+impl LoginQueryParams {
+    /// Try to verify that the received HMAC tag matches the HMAC tag computed from the received user error string.
+    /// If the tags don't match the method returns a `DataParsingError`, otherwise it returns the received user error string.
+    pub fn verify(self, app_state: &AppState) -> Result<String, DataParsingError> {
+        let received_hmac_tag = utils::hex_decode(self.tag).map_err(DataParsingError::Utils)?;
+        let received_error =
+            utils::b64u_decode_to_string(&self.error).map_err(DataParsingError::Utils)?;
+
+        let mut mac = Hmac::<Sha256>::new_from_slice(app_state.hmac_secret.expose_secret())
+            .context("deserializing login query: failed to create HMAC from hmac_secret")?;
+        mac.update(self.error.as_bytes());
+        mac.verify_slice(&received_hmac_tag)
+            .map_err(|_| DataParsingError::LoginHmacTagInvalid(received_error.clone()))?;
+
+        Ok(received_error)
+    }
+}
+
+// TODO: write tests
+#[test]
+fn login_query_params_verify_works() {}
+
 // ###################################
 // ->   ERROR
 // ###################################
@@ -186,6 +211,15 @@ pub enum DataParsingError {
 
     #[error("invalid subscriber token: {0}")]
     SubscriberTokenInvalid(String),
+
+    #[error("received hmac tag does not match the hmac tag computed from the received error: {0}")]
+    LoginHmacTagInvalid(String),
+
+    #[error("utils error: {0}")]
+    Utils(#[from] utils::UtilsError),
+
+    #[error("unexpected error: {0}")]
+    UnexpectedError(#[from] anyhow::Error),
 }
 
 // ###################################

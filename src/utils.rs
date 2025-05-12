@@ -11,14 +11,14 @@ pub fn b64_encode(v: impl AsRef<[u8]>) -> String {
 }
 
 /// Base64 decode
-pub fn b64_decode(v: &str) -> Result<Vec<u8>> {
+pub fn b64_decode(v: impl AsRef<str>) -> Result<Vec<u8>> {
     STANDARD
-        .decode(v)
+        .decode(v.as_ref())
         .map_err(|er| UtilsError::B64Decode(er.to_string()))
 }
 
 /// Base64 decode to String
-pub fn b64_decode_to_string(v: &str) -> Result<String> {
+pub fn b64_decode_to_string(v: impl AsRef<str>) -> Result<String> {
     String::from_utf8(b64_decode(v)?).map_err(|er| UtilsError::B64Decode(er.to_string()))
 }
 
@@ -28,14 +28,14 @@ pub fn b64u_encode(v: impl AsRef<[u8]>) -> String {
 }
 
 /// Base64-URL decode
-pub fn b64u_decode(v: &str) -> Result<Vec<u8>> {
+pub fn b64u_decode(v: impl AsRef<str>) -> Result<Vec<u8>> {
     URL_SAFE_NO_PAD
-        .decode(v)
+        .decode(v.as_ref())
         .map_err(|er| UtilsError::B64uDecode(er.to_string()))
 }
 
 /// Base64-URL decode to String
-pub fn b64u_decode_to_string(v: &str) -> Result<String> {
+pub fn b64u_decode_to_string(v: impl AsRef<str>) -> Result<String> {
     String::from_utf8(b64u_decode(v)?).map_err(|er| UtilsError::B64uDecode(er.to_string()))
 }
 // ###################################

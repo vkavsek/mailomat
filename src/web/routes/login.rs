@@ -1,6 +1,6 @@
 use crate::{
-    utils::{self, b64u_decode_to_string, hex_decode},
     web::{
+        self,
         auth::{self, Credentials},
         types::LoginQueryParams,
         WebResult,
@@ -21,8 +21,8 @@ pub enum LoginError {
     Auth(#[from] auth::AuthError),
     #[error("tera template render error: {0}")]
     Tera(#[from] tera::Error),
-    #[error("utils error: {0}")]
-    Utils(#[from] utils::UtilsError),
+    #[error("data parsing error: {0}")]
+    DataParsing(#[from] web::types::DataParsingError),
 }
 
 pub async fn login_get(
@@ -31,14 +31,15 @@ pub async fn login_get(
 ) -> WebResult<Html<String>> {
     let mut ctx = tera::Context::new();
 
-    if let Some(LoginQueryParams {
-        error_b64u,
-        tag_hex,
-    }) = query_params
-    {
-        let error = b64u_decode_to_string(&error_b64u).map_err(LoginError::Utils)?;
-        let tag = hex_decode(tag_hex).map_err(LoginError::Utils)?;
-        ctx.insert("error_message", &error);
+    if let Some(login_query_params) = query_params {
+        match login_query_params.verify(&app_state) {
+            // on succesful hmac verification insert the user error msg into the template
+            Ok(error_msg) => ctx.insert("error_message", &error_msg),
+            // otherwise emit a warning log and do not show the error to the user.
+            Err(e) => {
+                tracing::warn!(error.message = %e, error.cause_chain = ?e, "failed to verify query parameters with the HMAC tag");
+            }
+        }
     }
 
     let body = app_state

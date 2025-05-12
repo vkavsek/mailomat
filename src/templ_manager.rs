@@ -4,7 +4,8 @@ use std::sync::OnceLock;
 use tera::Tera;
 use tracing::info;
 
-#[derive(Debug)]
+/// Contains a static ref to a [`Tera`] instance, it can be cheaply cloned around.
+#[derive(Debug, Clone)]
 pub struct TemplateManager {
     tera: &'static Tera,
 }

@@ -159,7 +159,7 @@ async fn api_subscribe_duplicated_subscription_still_returns_200() -> Result<()>
         .mount(&app.email_server)
         .await;
 
-    for (i, body) in std::iter::repeat(body).take(2).enumerate() {
+    for (i, body) in std::iter::repeat_n(body, 2).enumerate() {
         let res = app.api_subscribe_post(&body).await?;
         assert_eq!(res.status(), StatusCode::OK, "failed in iteration {i}");
     }

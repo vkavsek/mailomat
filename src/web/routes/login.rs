@@ -8,7 +8,7 @@ use crate::{
     AppState,
 };
 use axum::{
-    extract::{Query, State},
+    extract::{rejection::QueryRejection, Query, State},
     http::StatusCode,
     response::{Html, IntoResponse, Response},
     Form,
@@ -27,12 +27,12 @@ pub enum LoginError {
 
 pub async fn login_get(
     State(app_state): State<AppState>,
-    Query(query_params): Query<Option<LoginQueryParams>>,
+    query_params: Result<Query<LoginQueryParams>, QueryRejection>,
 ) -> WebResult<Html<String>> {
     let mut ctx = tera::Context::new();
 
-    if let Some(login_query_params) = query_params {
-        match login_query_params.verify(&app_state) {
+    if let Ok(query) = query_params {
+        match query.0.verify(&app_state) {
             // on succesful hmac verification insert the user error msg into the template
             Ok(error_msg) => ctx.insert("error_message", &error_msg),
             // otherwise emit a warning log and do not show the error to the user.

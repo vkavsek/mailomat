@@ -188,10 +188,6 @@ impl LoginQueryParams {
     }
 }
 
-// TODO: write tests
-#[test]
-fn login_query_params_verify_works() {}
-
 // ###################################
 // ->   ERROR
 // ###################################

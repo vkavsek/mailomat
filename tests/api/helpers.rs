@@ -52,6 +52,7 @@ impl TestApp {
         // A mock server to stand-in for Postmark API
         let email_server = MockServer::start().await;
 
+        // Modify config
         let config = {
             let mut c = get_or_init_config().to_owned();
             // A new name for each test

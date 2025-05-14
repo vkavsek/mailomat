@@ -17,22 +17,18 @@ Uses [Axum](https://github.com/tokio-rs/axum) instead of Actix with hosting on [
 
 ### Development
 
-- It needs a running Postgres database for the tests to work.
-- You can initialize the Docker image running a Postgres database with `scripts/init_docker_db.sh` script.
+- It needs a running Postgres & Redis databases for the tests to work.
+- You can initialize the Docker images running Postgres and Redis databases with `./scripts/init_databases.sh` script.
 
-By default the script tries to delete the previous Docker image with the same name,
-if running for the first time you need to run it like so:
-
-##### bash
+The script first tries to do a reset by deleting the image left behind from the previous day.
+If running on a system for the first time you need to run it like so:
 
 ```sh
-SKIP_DB_RESET=1 ./scripts/init_docker_db.sh
+SKIP_DB_RESET=1 ./scripts/init_databases.sh
 ```
 
-##### fish
-
 ```fish
-env SKIP_DB_RESET=1 ./scripts/init_docker_db.sh
+env SKIP_DB_RESET=1 ./scripts/init_databases.sh
 ```
 
 ### Testing
@@ -56,6 +52,12 @@ CONFIG__NET_CONFIG__APP_PORT=8000
 #### Tera notes
 
 [Tera](https://keats.github.io/tera/) is used as a templating engine. You can modify the templates in the templates folder.
+
+#### Redis notes
+
+- Redis is used for session management because [fly.io](https://fly.io/docs/upstash/redis/) offers a managed Redis database service via [Upstash](https://upstash.com/docs/redis/overall/getstarted)
+- It could easily be swapped out for Valkey which can be deployed on fly.io with [flycast](https://fly.io/docs/blueprints/private-applications-flycast/).
+  Valkey seems more trustworthy, but the upstash-redis provides high availability, seems pretty cheap and probably handles backups etc.
 
 ### Deployment
 

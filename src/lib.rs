@@ -3,6 +3,7 @@ pub mod config;
 pub mod database;
 pub mod email_client;
 mod error;
+pub mod redis_manager;
 pub mod templ_manager;
 pub mod utils;
 pub mod web;

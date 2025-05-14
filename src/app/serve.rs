@@ -13,6 +13,8 @@ use tower_http::{
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
     trace::{MakeSpan, OnRequest, OnResponse, TraceLayer},
 };
+use tower_sessions::{Expiry, SessionManagerLayer};
+use tower_sessions_redis_store::RedisStore;
 use tracing::Span;
 
 use crate::App;
@@ -46,6 +48,12 @@ pub async fn serve(app: App) -> Result<()> {
 
     let trace_layer = build_trace_layer();
 
+    // TODO: is this okay?
+    let session_store = RedisStore::new(app_state.redis_manager.get_pool().clone());
+    let session_man_layer = SessionManagerLayer::new(session_store)
+        .with_signed(Key::from(app_state.cookie_secret.expose_secret()))
+        .with_expiry(Expiry::OnInactivity(cookie::time::Duration::minutes(1)));
+
     let app = Router::new().merge(routes(app_state.clone())).layer(
         ServiceBuilder::new()
             // Set UUID per request
@@ -56,6 +64,8 @@ pub async fn serve(app: App) -> Result<()> {
             .layer(trace_layer)
             // cookie manager
             .layer(CookieManagerLayer::new())
+            // session manager
+            .layer(session_man_layer)
             // This has to be in front of the Propagation layer because while the request goes through
             // middleware as listed in the ServiceBuilder, the response goes through the middleware stack from the bottom up.
             // If we want the response mapper to find the Propagated header that middleware has to run first!

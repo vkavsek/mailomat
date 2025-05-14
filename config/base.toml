@@ -1,5 +1,6 @@
 [net_config]
 app_port = 8080
+redis_uri = "redis://127.0.0.1:6379"
 # Only for dev
 cookie_secret_b64enc = "RIZ0tOJnMEqcl5VE6p18DL1RZfvREES+/4nTKrciiNGSh0aNtcYO3pDTcuvlStn/c4jfR6pGL+7ZA4BHN6Q/Ow=="
 # FIXME: setup on fly.io

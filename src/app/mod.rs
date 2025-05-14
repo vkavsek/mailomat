@@ -12,8 +12,8 @@ use tokio::net::TcpListener;
 use tracing::info;
 
 use crate::{
-    config::AppConfig, database::DbManager, templ_manager::TemplateManager, utils, EmailClient,
-    Result,
+    config::AppConfig, database::DbManager, redis_manager::RedisManager,
+    templ_manager::TemplateManager, utils, EmailClient, Result,
 };
 
 // ###################################
@@ -35,6 +35,7 @@ impl App {
         let email_addr = config.email_config.valid_sender()?;
 
         let dm = DbManager::init(&config).await?;
+        let redis_manager = RedisManager::init(&config).await?;
         let tm = TemplateManager::init();
         let email_timeout = config.email_config.timeout();
         let email_client = EmailClient::new(
@@ -52,6 +53,7 @@ impl App {
             dm,
             tm,
             email_client,
+            redis_manager,
             config.net_config.base_url,
             cookie_secret,
         );
@@ -70,6 +72,7 @@ pub struct InternalState {
     pub database_mgr: DbManager,
     pub templ_mgr: TemplateManager,
     pub email_client: EmailClient,
+    pub redis_manager: RedisManager,
     pub base_url: String,
     pub cookie_secret: SecretSlice<u8>,
 }
@@ -85,6 +88,7 @@ impl AppState {
         database_mgr: DbManager,
         templ_mgr: TemplateManager,
         email_client: EmailClient,
+        redis_manager: RedisManager,
         base_url: String,
         cookie_secret: SecretSlice<u8>,
     ) -> Self {
@@ -92,6 +96,7 @@ impl AppState {
             templ_mgr,
             database_mgr,
             email_client,
+            redis_manager,
             base_url,
             cookie_secret,
         }))

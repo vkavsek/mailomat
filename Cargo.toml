@@ -17,6 +17,11 @@ tokio = { version = "1", features = ["full"] }
 axum = { version = "0.8" }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["trace", "request-id"] }
+# Cookies 
+tower-cookies = { version = "0.11", features = ["signed"] }
+# Session Management
+tower-sessions = { version = "0.14", features = ["signed"] }
+tower-sessions-redis-store = "0.16"
 # Tracing
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -39,9 +44,6 @@ tera = "1"
 figment = { version = "0.10", features = ["env", "toml"] }
 # Password Hashing 
 argon2 = { version = "0.5", features = ["std"] }
-# Message Authentication Codes
-hmac = { version = "0.12", features = ["std"] }
-sha2 = "0.10"
 # Errors
 thiserror = "2"
 anyhow = "1"
@@ -55,7 +57,7 @@ base64 = "0.22"
 [dependencies.reqwest]
 version = "0.12"
 default-features = false
-features = ["json", "rustls-tls"]
+features = ["json", "rustls-tls", "cookies"]
 # SQLX
 [dependencies.sqlx]
 version = "0.8"
@@ -71,6 +73,7 @@ features = [
 
 [dev-dependencies]
 wiremock = "0.6"
+# TODO: this can probably be removed 
 claims = "0.8"
 fake = "4.3"
 quickcheck = "1"

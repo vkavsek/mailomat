@@ -31,6 +31,7 @@ pub struct AppConfig {
 pub struct NetConfig {
     pub host: [u8; 4],
     pub app_port: u16,
+    pub redis_uri: SecretString,
     pub base_url: String,
     pub cookie_secret_b64enc: SecretString,
 }

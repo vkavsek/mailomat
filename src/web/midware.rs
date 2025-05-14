@@ -1,24 +1,24 @@
 //! The middleware implementations
 
+use crate::{
+    utils::b64u_encode,
+    web::{self, WebResult, FLASH_ERROR_MSG, REQUEST_ID_HEADER},
+    AppState,
+};
+
 use std::sync::Arc;
 
 use anyhow::Context;
 use axum::{
     extract::State,
+    http::{header, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
-use hmac::{Hmac, Mac};
 use secrecy::ExposeSecret;
 use serde_json::json;
-use sha2::Sha256;
 
-use crate::{
-    utils::{self, b64u_encode},
-    web::{self, WebResult, REQUEST_ID_HEADER},
-    AppState,
-};
-
+use tower_cookies::{Cookie, Cookies, Key};
 use web::routes::{api::news::NewsError, login::LoginError};
 
 #[derive(Debug, thiserror::Error)]
@@ -33,6 +33,7 @@ pub enum RespMapError {
 /// print it, convert it to `ClientError` and use it to manipulate the response, which is then sent back to the user.
 pub async fn error_handle_response_mapper(
     State(app_state): State<AppState>,
+    cookies: Cookies,
     resp: Response,
 ) -> WebResult<Response> {
     // Get UUID from headers stored there by SetRequestIdLayer middleware from tower_http
@@ -59,32 +60,29 @@ pub async fn error_handle_response_mapper(
                 .expect("checked above");
 
             tracing::error!("client error: {client_error:?}");
+
+            // NOTE: it would probably be fine to just block here
             let b64u_client_error_str = tokio::task::spawn_blocking(move || {
                 b64u_encode(client_error.to_string().as_bytes())
             })
             .await
             .map_err(|er| anyhow::anyhow!("midware: {er}"))?;
 
-            // Create a message authentication code tag for our error messages
-            // encoded as hexadecimal
-            let hmac_tag_hex = {
-                let mut mac = Hmac::<Sha256>::new_from_slice(app_state.hmac_secret.expose_secret())
-                    .context("midware: failed to create HMAC from hmac_secret")?;
-                mac.update(b64u_client_error_str.as_bytes());
-                utils::hex_encode(mac.finalize().into_bytes())
-            };
-
-            // insert error message and hexadecimal represenation of HMAC tag
-            let mut resp = axum::http::StatusCode::SEE_OTHER.into_response();
-            resp.headers_mut().insert(
-                axum::http::header::LOCATION,
-                format!(
-                    "/login?error={}&tag={}",
-                    b64u_client_error_str, hmac_tag_hex
-                )
-                .parse()
-                .context("midware: failed to parse location as header value")?,
+            // insert error message as a signed cookie
+            let mut resp = StatusCode::SEE_OTHER.into_response();
+            let headers = resp.headers_mut();
+            // insert the redirection location
+            headers.insert(
+                header::LOCATION,
+                "/login"
+                    .parse()
+                    .context("midware: failed to parse header value")?,
             );
+            // insert the error msg signed cookie
+            let key = Key::from(app_state.cookie_secret.expose_secret());
+            cookies
+                .signed(&key)
+                .add(Cookie::new(FLASH_ERROR_MSG, b64u_client_error_str));
             Some(resp)
         }
         // otherwise create default response
@@ -102,7 +100,7 @@ pub async fn error_handle_response_mapper(
             let mut resp = (*status, Json(client_error_body)).into_response();
             if matches!(er, web::Error::News(NewsError::Auth(_))) {
                 resp.headers_mut().insert(
-                    axum::http::header::WWW_AUTHENTICATE,
+                    header::WWW_AUTHENTICATE,
                     r#"Basic realm="publish""#.parse().expect("valid parse"),
                 );
             }

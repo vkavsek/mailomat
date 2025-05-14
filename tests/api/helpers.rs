@@ -12,7 +12,7 @@ use mailomat::{
     },
     App,
 };
-use reqwest::Client;
+use reqwest::{redirect, Client, ClientBuilder};
 use secrecy::{ExposeSecret, SecretString};
 use serde_json::{json, Value};
 use sqlx::{postgres::PgPoolOptions, Connection, PgConnection};
@@ -86,7 +86,10 @@ impl TestApp {
         // Build a TestApp
         let addr = app.listener.local_addr()?;
         let dm = app.app_state.database_mgr.clone();
-        let http_client = Client::new();
+        let http_client = ClientBuilder::new()
+            .redirect(redirect::Policy::none())
+            .cookie_store(true)
+            .build()?;
         let test_user = TestUser { username, password };
         let test_app = TestApp {
             http_client,
@@ -225,8 +228,29 @@ impl TestApp {
 
         Ok(subscriber)
     }
+
+    /// Sends a post request to /login serializing the body into `form`
+    pub async fn login_post(&self, body: impl serde::Serialize) -> Result<reqwest::Response> {
+        Ok(self
+            .http_client
+            .post(format!("http://{}/login", self.addr))
+            .form(&body)
+            .send()
+            .await?)
+    }
+    /// Sends a get request to /login and returns the HTML body string.
+    pub async fn login_get_html(&self) -> Result<String> {
+        Ok(self
+            .http_client
+            .get(format!("http://{}/login", self.addr))
+            .send()
+            .await?
+            .text()
+            .await?)
+    }
 }
 
+/// Initializes the tracing_subscriber for testing
 fn init_test_subscriber() {
     static SUBSCRIBER: OnceLock<()> = OnceLock::new();
     SUBSCRIBER.get_or_init(|| {
@@ -265,6 +289,7 @@ async fn test_database_create_migrate(config: &AppConfig) -> Result<()> {
     Ok(())
 }
 
+/// Post to api/news without using the `TestApp`
 pub async fn api_news_post_appless(
     test_user: &TestUser,
     addr: &SocketAddr,
@@ -287,4 +312,11 @@ pub async fn api_news_post_appless(
         .await?;
 
     Ok(res)
+}
+
+/// A helper that ASSERTS that the response contains SEE_OTHER status code (303) and the provided
+/// redirection location matches the one in the response.
+pub fn assert_resp_redir_to(resp: &reqwest::Response, location: &str) {
+    assert_eq!(resp.status(), reqwest::StatusCode::SEE_OTHER);
+    assert_eq!(resp.headers().get("Location").unwrap(), location);
 }

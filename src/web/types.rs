@@ -1,17 +1,13 @@
 //! Most of the structs in `web` module and their implementations live here.
 //! Includes structs that need to be validated, their parsing implementations and tests for those
 
-use anyhow::Context;
 use derive_more::Deref;
-use hmac::{Hmac, Mac};
 use rand::{rng, RngCore};
-use secrecy::ExposeSecret;
 use serde::Deserialize;
-use sha2::Sha256;
 use unicode_segmentation::UnicodeSegmentation;
 use validator::ValidateEmail;
 
-use crate::{utils, AppState};
+use crate::utils;
 
 // ###################################
 // ->   STRUCTS
@@ -159,35 +155,6 @@ pub struct SubscribeConfirmQuery {
     pub subscription_token: String,
 }
 
-/// A deserializable struct that contains the BASE64-url encoded string representation of `ClientError`
-/// and an HMAC tag to authenticate the error message to be deserialized from the query on the login page
-/// in zero-padded hexadecimal representation
-#[derive(Debug, Deserialize)]
-pub struct LoginQueryParams {
-    /// BASE64-url encoded error
-    pub error: String,
-    /// Zero-padded lowercase Hexadecimal encoded HMAC tag
-    pub tag: String,
-}
-
-impl LoginQueryParams {
-    /// Try to verify that the received HMAC tag matches the HMAC tag computed from the received user error string.
-    /// If the tags don't match the method returns a `DataParsingError`, otherwise it returns the received user error string.
-    pub fn verify(self, app_state: &AppState) -> Result<String, DataParsingError> {
-        let received_hmac_tag = utils::hex_decode(self.tag).map_err(DataParsingError::Utils)?;
-        let received_error =
-            utils::b64u_decode_to_string(&self.error).map_err(DataParsingError::Utils)?;
-
-        let mut mac = Hmac::<Sha256>::new_from_slice(app_state.hmac_secret.expose_secret())
-            .context("deserializing login query: failed to create HMAC from hmac_secret")?;
-        mac.update(self.error.as_bytes());
-        mac.verify_slice(&received_hmac_tag)
-            .map_err(|_| DataParsingError::LoginHmacTagInvalid(received_error.clone()))?;
-
-        Ok(received_error)
-    }
-}
-
 // ###################################
 // ->   ERROR
 // ###################################
@@ -207,9 +174,6 @@ pub enum DataParsingError {
 
     #[error("invalid subscriber token: {0}")]
     SubscriberTokenInvalid(String),
-
-    #[error("received hmac tag does not match the hmac tag computed from the received error: {0}")]
-    LoginHmacTagInvalid(String),
 
     #[error("utils error: {0}")]
     Utils(#[from] utils::UtilsError),

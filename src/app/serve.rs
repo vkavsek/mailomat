@@ -5,7 +5,9 @@ use axum::{
     http::{HeaderName, Request, Response},
     middleware, Router,
 };
+use secrecy::ExposeSecret;
 use tower::ServiceBuilder;
+use tower_cookies::{cookie, CookieManagerLayer, Key};
 use tower_http::{
     classify::{ServerErrorsAsFailures, SharedClassifier},
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
@@ -52,6 +54,8 @@ pub async fn serve(app: App) -> Result<()> {
                 MakeRequestUuid,
             ))
             .layer(trace_layer)
+            // cookie manager
+            .layer(CookieManagerLayer::new())
             // This has to be in front of the Propagation layer because while the request goes through
             // middleware as listed in the ServiceBuilder, the response goes through the middleware stack from the bottom up.
             // If we want the response mapper to find the Propagated header that middleware has to run first!

@@ -6,11 +6,13 @@ use base64::{
 // ->   Base64 utils
 // ###################################
 /// Encode to Base64 String
+#[inline]
 pub fn b64_encode(v: impl AsRef<[u8]>) -> String {
     STANDARD.encode(v)
 }
 
 /// Base64 decode
+#[inline]
 pub fn b64_decode(v: impl AsRef<str>) -> Result<Vec<u8>> {
     STANDARD
         .decode(v.as_ref())
@@ -18,16 +20,19 @@ pub fn b64_decode(v: impl AsRef<str>) -> Result<Vec<u8>> {
 }
 
 /// Base64 decode to String
+#[inline]
 pub fn b64_decode_to_string(v: impl AsRef<str>) -> Result<String> {
     String::from_utf8(b64_decode(v)?).map_err(|er| UtilsError::B64Decode(er.to_string()))
 }
 
 /// Encode to Base64-URL String with no padding for use in URLs
+#[inline]
 pub fn b64u_encode(v: impl AsRef<[u8]>) -> String {
     URL_SAFE_NO_PAD.encode(v)
 }
 
 /// Base64-URL decode
+#[inline]
 pub fn b64u_decode(v: impl AsRef<str>) -> Result<Vec<u8>> {
     URL_SAFE_NO_PAD
         .decode(v.as_ref())

@@ -1,11 +1,13 @@
 pub mod serve;
 
-use anyhow::Context;
-use secrecy::{ExposeSecret, SecretSlice};
+// re-export
 pub use serve::serve;
 
-use derive_more::Deref;
 use std::{net::SocketAddr, sync::Arc};
+
+use anyhow::Context;
+use derive_more::Deref;
+use secrecy::{ExposeSecret, SecretSlice};
 use tokio::net::TcpListener;
 use tracing::info;
 
@@ -41,9 +43,9 @@ impl App {
             config.email_config.auth_token,
             email_timeout,
         )?;
-        let hmac_secret = SecretSlice::from(
-            utils::b64_decode(config.net_config.hmac_secret_b64enc.expose_secret())
-                .context("config: failed to decode HMAC secret from base64")?,
+        let cookie_secret = SecretSlice::from(
+            utils::b64_decode(config.net_config.cookie_secret_b64enc.expose_secret())
+                .context("config: failed to decode cookie secret from base64")?,
         );
 
         let app_state = AppState::new(
@@ -51,7 +53,7 @@ impl App {
             tm,
             email_client,
             config.net_config.base_url,
-            hmac_secret,
+            cookie_secret,
         );
 
         let addr = SocketAddr::from((config.net_config.host, config.net_config.app_port));
@@ -69,12 +71,12 @@ pub struct InternalState {
     pub templ_mgr: TemplateManager,
     pub email_client: EmailClient,
     pub base_url: String,
-    pub hmac_secret: SecretSlice<u8>,
+    pub cookie_secret: SecretSlice<u8>,
 }
 
 /// Application state containing all global data.
 /// It implements `Deref` to easily access the fields on `InternalState`
-/// Uses an `Arc` so it is cheap to clone!
+/// Uses an `Arc` so it can be cloned around.
 #[derive(Clone, Deref)]
 pub struct AppState(Arc<InternalState>);
 
@@ -84,14 +86,14 @@ impl AppState {
         templ_mgr: TemplateManager,
         email_client: EmailClient,
         base_url: String,
-        hmac_secret: SecretSlice<u8>,
+        cookie_secret: SecretSlice<u8>,
     ) -> Self {
         AppState(Arc::new(InternalState {
             templ_mgr,
             database_mgr,
             email_client,
             base_url,
-            hmac_secret,
+            cookie_secret,
         }))
     }
 }

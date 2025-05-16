@@ -49,7 +49,7 @@ thiserror = "2"
 anyhow = "1"
 # Others
 secrecy = { version = "0.10", features = ["serde"] }
-uuid = { version = "1", features = ["v4"] }
+uuid = { version = "1", features = ["v4", "serde"] }
 rand = { version = "0.9", features = ["std_rng"] }
 base64 = "0.22"
 

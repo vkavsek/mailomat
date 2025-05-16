@@ -34,8 +34,9 @@ impl RedisManager {
         Ok(RedisManager { pool })
     }
 
-    /// Retrieves a reference to the Redis connection pool
-    pub fn get_pool(&self) -> &Pool {
-        &self.pool
+    /// Retrieves Redis connection pool.
+    /// Returns an owned pool since it uses a reference under the hood.
+    pub fn get_pool(&self) -> Pool {
+        self.pool.clone()
     }
 }

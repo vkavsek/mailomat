@@ -2,10 +2,12 @@ use crate::{
     utils::{self, b64u_decode_to_string},
     web::{
         auth::{self, Credentials},
+        routes::admin::{AdminData, AdminSession},
         WebResult, FLASH_ERROR_MSG,
     },
     AppState,
 };
+use anyhow::Context;
 use axum::{
     extract::State,
     http::StatusCode,
@@ -14,16 +16,20 @@ use axum::{
 };
 use secrecy::ExposeSecret;
 use tower_cookies::{Cookie, Cookies, Key};
-use tracing::info;
+use tower_sessions::Session;
+use tracing::debug;
 
 #[derive(Debug, thiserror::Error)]
 pub enum LoginError {
     #[error("authentication error: {0}")]
     Auth(#[from] auth::AuthError),
-    #[error("tera template render error: {0}")]
-    Tera(#[from] tera::Error),
     #[error("utils error: {0}")]
     Utils(#[from] utils::UtilsError),
+
+    #[error("tower_sessions error: {0}")]
+    Session(#[from] tower_sessions::session::Error),
+    #[error("tera template render error: {0}")]
+    Tera(#[from] tera::Error),
 }
 
 #[tracing::instrument(name = "login_get", skip(app_state, cookies))]
@@ -51,9 +57,11 @@ pub async fn login_get(
     Ok(Html(body))
 }
 
-#[tracing::instrument(name = "login_post", skip(app_state, user_creds), fields(username = user_creds.username))]
+#[tracing::instrument(name = "login_post", skip_all, fields(username = user_creds.username))]
 pub async fn login_post(
     State(app_state): State<AppState>,
+    // untyped session
+    session: Session,
     Form(user_creds): Form<Credentials>,
 ) -> WebResult<Response> {
     // If we get an authentication error redirect to `login_form` is inserted to headers in response mapper
@@ -63,14 +71,26 @@ pub async fn login_post(
         .await
         .map_err(LoginError::Auth)?;
 
-    // Otherwise redirect user to the home page.
+    // Succesfully logged-in: redirect admin user to the dashboard.
     let mut resp = StatusCode::SEE_OTHER.into_response();
     resp.headers_mut().insert(
         axum::http::header::LOCATION,
-        "/".parse().expect("valid parse"),
+        "/admin/dashboard".parse().expect("valid parse"),
     );
-    // TODO: keep logged in
 
-    info!("user id: {:?}", user_id);
+    // Build a typed admin session
+    let admin_session = AdminSession::new(session, AdminData::new(user_id));
+    // Mitigate session fixation attacks
+    // more: https://owasp.org/www-community/attacks/Session_fixation
+    admin_session
+        .cycle_id()
+        .await
+        .context("couldn't cycle admin session IDs")?;
+
+    // Update the session with contained AdminData
+    admin_session.update_session().await?;
+
+    debug!(user_id = %user_id);
+
     Ok(resp)
 }

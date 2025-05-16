@@ -53,7 +53,7 @@ impl Credentials {
                 username: self.username,
             });
         }
-        tracing::info!("Succesfull authentication!");
+        tracing::info!("Succesful authentication!");
 
         Ok(user_id)
     }

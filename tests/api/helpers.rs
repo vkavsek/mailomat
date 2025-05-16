@@ -90,6 +90,7 @@ impl TestApp {
             .redirect(redirect::Policy::none())
             .cookie_store(true)
             .build()?;
+
         let test_user = TestUser { username, password };
         let test_app = TestApp {
             http_client,
@@ -247,6 +248,15 @@ impl TestApp {
             .await?
             .text()
             .await?)
+    }
+
+    pub async fn admin_dashboard_get_html(&self) -> Result<String> {
+        let req = self
+            .http_client
+            .get(format!("http://{}/admin/dashboard", self.addr))
+            .build()?;
+
+        Ok(self.http_client.execute(req).await?.text().await?)
     }
 }
 

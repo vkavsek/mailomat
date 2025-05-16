@@ -19,7 +19,7 @@ use secrecy::ExposeSecret;
 use serde_json::json;
 
 use tower_cookies::{Cookie, Cookies, Key};
-use web::routes::{api::news::NewsError, login::LoginError};
+use web::routes::{LoginError, NewsError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum RespMapError {

@@ -25,6 +25,13 @@ pub struct AppConfig {
     pub net_config: NetConfig,
     pub db_config: DbConfig,
     pub email_config: EmailConfig,
+    pub session_config: SessionConfig,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct SessionConfig {
+    pub secure: bool,
+    pub expiry_secs: i64,
 }
 
 #[derive(Deserialize, Clone, Debug)]

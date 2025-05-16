@@ -1,19 +1,21 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+  <head>
+    <title>Login</title>
+  </head>
 
-<head>
-	<title>Login</title>
-</head>
-
-<body>
-	{% if error_message is defined %}
-	<p><i>{{ error_message }}</i></p>
-	{% endif %}
-	<form action="/login" , method="post">
-		<label for="Username"><input type="text" name="username" placeholder="Enter Username"></label>
-		<label for="Password"><input type="password" name="password" placeholder="Enter Password"></label>
-		<button type="submit">Login</button>
-	</form>
-</body>
-
+  <body>
+    {% if error_message is defined %}
+      <p><i>{{ error_message }}</i></p>
+    {% endif %}
+    <form action="/login" , method="post">
+      <label for="Username">
+        <input type="text" name="username" placeholder="Enter Username" />
+      </label>
+      <label for="Password">
+        <input type="password" name="password" placeholder="Enter Password" />
+      </label>
+      <button type="submit">Login</button>
+    </form>
+  </body>
 </html>

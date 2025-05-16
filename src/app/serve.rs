@@ -17,7 +17,7 @@ use tower_sessions::{Expiry, SessionManagerLayer};
 use tower_sessions_redis_store::RedisStore;
 use tracing::Span;
 
-use crate::App;
+use crate::{config::get_or_init_config, App};
 
 use crate::web::{midware, routes::routes, REQUEST_ID_HEADER};
 
@@ -48,11 +48,15 @@ pub async fn serve(app: App) -> Result<()> {
 
     let trace_layer = build_trace_layer();
 
-    // TODO: is this okay?
-    let session_store = RedisStore::new(app_state.redis_manager.get_pool().clone());
+    // TODO: check session settings for security, read all the `with_` methods
+    let session_config = &get_or_init_config().session_config;
+    let session_store = RedisStore::new(app_state.redis_manager.get_pool());
     let session_man_layer = SessionManagerLayer::new(session_store)
         .with_signed(Key::from(app_state.cookie_secret.expose_secret()))
-        .with_expiry(Expiry::OnInactivity(cookie::time::Duration::minutes(1)));
+        .with_secure(session_config.secure)
+        .with_expiry(Expiry::OnInactivity(cookie::time::Duration::seconds(
+            session_config.expiry_secs,
+        )));
 
     let app = Router::new().merge(routes(app_state.clone())).layer(
         ServiceBuilder::new()

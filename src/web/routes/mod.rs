@@ -1,15 +1,26 @@
-pub mod api;
-pub mod home;
-pub mod login;
+//! Contains all the routes that this application can handle.
+
+mod admin;
+mod api;
+mod home;
+mod login;
+
+// re-export errors
+pub use admin::AdminError;
+pub use api::{
+    news::NewsError, subscribe::SubscribeError, subscribe_confirm::SubscribeConfirmError,
+};
+pub use login::LoginError;
+
+use crate::AppState;
+use home::home;
+use login::{login_get, login_post};
 
 use axum::{
     http::StatusCode,
     routing::{get, post},
     Router,
 };
-use login::{login_get, login_post};
-
-use crate::AppState;
 
 async fn health_check() -> StatusCode {
     StatusCode::OK
@@ -18,10 +29,11 @@ async fn health_check() -> StatusCode {
 /// All the routes of the server
 pub fn routes(app_state: AppState) -> Router {
     Router::new()
-        .route("/", get(home::home))
+        .route("/", get(home))
         .route("/login", get(login_get).post(login_post))
         .with_state(app_state.clone())
-        .nest("/api", api_routes(app_state))
+        .nest("/api", api_routes(app_state.clone()))
+        .nest("/admin", admin_routes(app_state))
         .route("/health-check", get(health_check))
 }
 
@@ -38,5 +50,11 @@ fn subscribe_routes(app_state: AppState) -> Router {
     Router::new()
         .route("/", post(api::subscribe))
         .route("/confirm", get(api::subscribe_confirm))
+        .with_state(app_state)
+}
+
+fn admin_routes(app_state: AppState) -> Router {
+    Router::new()
+        .route("/dashboard", get(admin::dashboard))
         .with_state(app_state)
 }

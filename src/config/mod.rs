@@ -46,8 +46,9 @@ pub fn get_or_init_config() -> &'static AppConfig {
             .extract()
             .unwrap_or_else(|e| panic!("Unable to build AppConfig: {}", e.to_string()));
 
-        // Setup DbConfig for production
         if matches!(environment, Environment::Production) {
+            // Setup DbConfig for production
+            //
             // Panic early if there are any problems.
             // DATABASE_URL is a secret provided by Fly.io
             let production_db = std::env::var("DATABASE_URL").unwrap_or_else(|er| {
@@ -57,6 +58,8 @@ pub fn get_or_init_config() -> &'static AppConfig {
                 panic!("Fatal Error: While parsing DbConfig from String: {er:?}")
             });
             config.db_config = prod_db_config;
+
+            // TODO: redis on fly.io
         }
 
         config

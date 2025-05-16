@@ -6,11 +6,11 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use routes::login::LoginError;
 use std::sync::Arc;
 use strum_macros::AsRefStr;
 
 use super::*;
+use routes::LoginError;
 
 pub type WebResult<T> = core::result::Result<T, Error>;
 
@@ -19,13 +19,15 @@ pub enum Error {
     #[error("response mapper error: {0}")]
     ResponseMapper(#[from] midware::RespMapError),
     #[error("api news error: {0}")]
-    News(#[from] routes::api::news::NewsError),
+    News(#[from] routes::NewsError),
     #[error("api subscribe error: {0}")]
-    Subscribe(#[from] routes::api::subscribe::SubscribeError),
+    Subscribe(#[from] routes::SubscribeError),
     #[error("api subscribe confirm error: {0}")]
-    SubscribeConfirm(#[from] routes::api::subscribe_confirm::SubscribeConfirmError),
+    SubscribeConfirm(#[from] routes::SubscribeConfirmError),
     #[error("login error: {0}")]
-    Login(#[from] routes::login::LoginError),
+    Login(#[from] routes::LoginError),
+    #[error("admin error: {0}")]
+    Admin(#[from] routes::AdminError),
 
     #[error("sqlx error: {0}")]
     Sqlx(#[from] sqlx::Error),
@@ -36,9 +38,7 @@ pub enum Error {
 
 impl Error {
     pub fn status_code_and_client_error(&self) -> (StatusCode, ClientError) {
-        use routes::api::{
-            news::NewsError, subscribe::SubscribeError, subscribe_confirm::SubscribeConfirmError,
-        };
+        use routes::{NewsError, SubscribeConfirmError, SubscribeError};
         use Error::*;
 
         match self {

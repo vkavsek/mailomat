@@ -1,3 +1,6 @@
+[session_config]
+secure = true
+
 [net_config]
 host = [0, 0, 0, 0]
 base_url = "https://mailomat.fly.dev"

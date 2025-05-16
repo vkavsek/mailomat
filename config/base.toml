@@ -1,3 +1,6 @@
+[session_config]
+expiry_secs = 120
+
 [net_config]
 app_port = 8080
 redis_uri = "redis://127.0.0.1:6379"

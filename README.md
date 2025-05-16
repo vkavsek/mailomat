@@ -39,7 +39,7 @@ It works the same way as `RUST_LOG`.
 #### Config notes
 
 Currently [figment](https://github.com/SergioBenitez/Figment) is used to build the config. You can inject values at runtime with enviroment variables
-that start with a prefix "CONFIG", and fields separated by "\_\_" like so:
+that start with a prefix `CONFIG__`, and fields separated by `__` like so:
 
 ```sh
 CONFIG__NET_CONFIG__APP_PORT=8000

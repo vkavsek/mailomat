@@ -5,13 +5,13 @@ use uuid::Uuid;
 
 fn main() -> anyhow::Result<()> {
     println!("\nADMIN USER SETUP UTILITY\n");
-    println!("For all the fields you are asked to provide note that leading and trailing whitespaces are FORBIDDEN and will be removed.\n");
-    println!("provide a username:\n");
+    println!("Please note: Any leading or trailing whitespace in the fields you enter will be automatically trimmed and is not allowed.\n");
+    println!("Provide a username:\n");
     let mut username_buf = String::with_capacity(256);
     std::io::stdin().read_line(&mut username_buf)?;
     let username = username_buf.trim().to_string();
 
-    println!("provide a password:\n");
+    println!("Provide a password:\n");
     let mut password_buf = String::with_capacity(256);
     std::io::stdin().read_line(&mut password_buf)?;
     let password = password_buf.trim().to_string();
@@ -44,7 +44,7 @@ impl Display for Admin {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "\n\nADMIN:\n\n'{}'\n'{}'\n'{}'",
+            "\n\nADMIN:\n\n'{}',\n'{}',\n'{}'",
             self.user_id, self.username, self.password_hash
         )
     }

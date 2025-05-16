@@ -250,13 +250,13 @@ impl TestApp {
             .await?)
     }
 
-    pub async fn admin_dashboard_get_html(&self) -> Result<String> {
+    pub async fn admin_dashboard_get(&self) -> Result<reqwest::Response> {
         let req = self
             .http_client
             .get(format!("http://{}/admin/dashboard", self.addr))
             .build()?;
 
-        Ok(self.http_client.execute(req).await?.text().await?)
+        Ok(self.http_client.execute(req).await?)
     }
 }
 

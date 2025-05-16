@@ -15,6 +15,8 @@ use crate::web;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AdminError {
+    #[error("unauthorized access")]
+    Unauthorized,
     #[error("tower_sessions error: {0}")]
     Session(#[from] tower_sessions::session::Error),
 
@@ -83,12 +85,9 @@ impl AdminSession {
     }
 
     /// updates the contained session with the contained data.
-    /// needs to be called when first building the AdminSession.
+    /// `update_session` or `update_session_with` needs to be called when first building the AdminSession.
     pub async fn update_session(&self) -> Result<(), AdminError> {
-        self.session
-            .insert(Self::ADMIN_DATA_KEY, self.admin_data.clone())
-            .await?;
-        Ok(())
+        self.update_session_with(self.admin_data.clone()).await
     }
 
     /// updates the contained session with the provided data.
@@ -117,7 +116,7 @@ where
             .await
             .map_err(AdminError::Session)?
         else {
-            return Err(anyhow!("no AdminData could be found in the session").into());
+            return Err(AdminError::Unauthorized.into());
         };
 
         admin_data.last_seen = OffsetDateTime::now_utc();

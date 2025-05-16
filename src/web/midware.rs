@@ -2,16 +2,16 @@
 
 use crate::{
     utils::b64u_encode,
-    web::{self, WebResult, FLASH_ERROR_MSG, REQUEST_ID_HEADER},
+    web::{self, routes::AdminError, WebResult, FLASH_ERROR_MSG, REQUEST_ID_HEADER},
     AppState,
 };
 
 use std::sync::Arc;
 
-use anyhow::Context;
 use axum::{
+    body::Body,
     extract::State,
-    http::{header, StatusCode},
+    http::{self, header, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
@@ -68,21 +68,24 @@ pub async fn error_handle_response_mapper(
             .await
             .map_err(|er| anyhow::anyhow!("midware: {er}"))?;
 
-            // insert error message as a signed cookie
-            let mut resp = StatusCode::SEE_OTHER.into_response();
-            let headers = resp.headers_mut();
-            // insert the redirection location
-            headers.insert(
-                header::LOCATION,
-                "/login"
-                    .parse()
-                    .context("midware: failed to parse header value")?,
-            );
+            // create redirection to /login as a response
+            let resp = redir_to_login_response();
+
             // insert the error msg signed cookie
             let key = Key::from(app_state.cookie_secret.expose_secret());
             cookies
                 .signed(&key)
                 .add(Cookie::new(FLASH_ERROR_MSG, b64u_client_error_str));
+
+            Some(resp)
+        }
+        // If we detect unauthorized access to /admin/dashboard redirect to /login
+        Some(web::Error::Admin(AdminError::Unauthorized)) => {
+            tracing::error!("client error: {}", AdminError::Unauthorized);
+
+            // create a redirection to /login
+            let resp = redir_to_login_response();
+
             Some(resp)
         }
         // otherwise create default response
@@ -110,4 +113,16 @@ pub async fn error_handle_response_mapper(
     };
 
     Ok(err_resp.unwrap_or(resp))
+}
+
+#[inline]
+fn redir_to_login_response() -> http::Response<Body> {
+    let mut resp = StatusCode::SEE_OTHER.into_response();
+    resp.headers_mut().insert(
+        header::LOCATION,
+        "/login"
+            .parse()
+            .expect("'/login' should be a parsable header val"),
+    );
+    resp
 }

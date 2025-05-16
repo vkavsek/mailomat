@@ -39,9 +39,20 @@ async fn login_redirect_to_admin_dashboard_on_success() -> Result<()> {
     let resp = app.login_post(valid_login_form).await?;
     assert_resp_redir_to(&resp, "/admin/dashboard");
 
-    let redir_body = app.admin_dashboard_get_html().await?;
+    let redir_body = app.admin_dashboard_get().await?.text().await?;
 
     assert!(redir_body.contains(&format!("Welcome {}!", app.test_user.username)));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn admin_dashboard_redirect_to_login_no_auth() -> Result<()> {
+    let app = TestApp::spawn().await?;
+
+    let resp = app.admin_dashboard_get().await?;
+
+    assert_resp_redir_to(&resp, "/login");
 
     Ok(())
 }

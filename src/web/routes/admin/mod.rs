@@ -1,10 +1,12 @@
 mod dashboard;
+mod password;
+
+// re-exports
+pub use dashboard::dashboard;
+pub use password::{get_change_password, post_change_password};
 
 use anyhow::anyhow;
 use axum::{extract::FromRequestParts, http::request::Parts};
-// re-exports
-pub use dashboard::dashboard;
-
 use serde::{Deserialize, Serialize};
 use tower_cookies::cookie::time::OffsetDateTime;
 use tower_sessions::Session;
@@ -24,6 +26,15 @@ pub enum AdminError {
     Unexpected(#[from] anyhow::Error),
 }
 
+/// An implementation of a typed admin session.
+/// Can be extracted from the request and can therefore be used in a handler.
+/// Contains the information about the admin and the session.
+/// Admins are (somewhat confusingly) stored in the `users` table in the database.
+pub struct AdminSession {
+    session: Session,
+    admin_data: AdminData,
+}
+
 /// Admin information
 #[derive(Clone, Deserialize, Serialize)]
 pub struct AdminData {
@@ -40,15 +51,6 @@ impl AdminData {
             last_seen: OffsetDateTime::now_utc(),
         }
     }
-}
-
-/// An implementation of admin sessions.
-/// Can be extracted from the request and can therefore be used in a handler.
-/// Contains the information about the admin and the session.
-/// Admins are (somewhat confusingly) stored in the `users` table in the database.
-pub struct AdminSession {
-    session: Session,
-    admin_data: AdminData,
 }
 
 #[allow(dead_code)]
